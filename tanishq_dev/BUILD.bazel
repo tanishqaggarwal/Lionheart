@@ -1,0 +1,19 @@
+load("@platformio_rules//platformio:platformio.bzl", "platformio_project", "platformio_library")
+
+platformio_project(
+    name = "rover_control",
+    src = "rover_control.cc",
+    board = "teensy41",
+    framework = "arduino",
+    platform = "teensy",
+)
+
+cc_library(
+    name = "dynamics",
+    srcs = ["dynamics.cc"],
+)
+
+cc_library(
+    name = "linalg",
+    srcs = ["linalg.cc"],
+)

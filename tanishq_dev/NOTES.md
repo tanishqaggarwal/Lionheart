@@ -1,4 +1,6 @@
-# 2024-12-13
+# Notes page
+
+## 2024-12-13
 
 Notes on getting Bazel to work:
 - Had to install Python 3.7 on my Mac using pyenv (`brew install pyenv`)

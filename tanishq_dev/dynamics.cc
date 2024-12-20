@@ -11,10 +11,10 @@ template<typename T>
 struct RoverT
 {
     /// Density of seawater in the operating region
-    static constexpr T water_density = 1035.0; // kg / m^3
+    static constexpr T water_density { 1035.0 }; // kg / m^3
 
     /// Inertial acceleration due to gravity
-    static constexpr Vector<3> accel_gravity {0, 0, 9.81}; // m/s^2
+    static constexpr Vector3<T> accel_gravity {0, 0, 9.81}; // m/s^2
 
     // Internal state of system
     template<typename Quantity>
@@ -35,10 +35,10 @@ struct RoverT
     integrated_state_t<Matrix3<T>> attitude;
 
     /// Total mass of rover (accounting for internal water storage as well.)
-    T mass = T{0.0};
+    T mass {0.0};
 
     /// Total dry volume of rover.
-    T volume = T{0.0};
+    T volume {0.0};
 
     /// Moment of inertia (and its inverse) in body frame.
     Matrix3<T> moi;
@@ -48,7 +48,7 @@ struct RoverT
     Vector3<T> cb;
 
     /// Positions and directions of thrust vectors, in body frame.
-    static constexpr size_t N_THRUSTERS = 5;
+    static constexpr size_t N_THRUSTERS { 5 };
     std::array<Vector3<T>, N_THRUSTERS> thrust_positions;
     std::array<Vector3<T>, N_THRUSTERS> thrust_vectors;
 
@@ -60,13 +60,13 @@ struct RoverT
         // - Water is inviscid and incompressible
         // - Make some assumptions about body geometry
 
-        return std::make_tuple(Matrix3<T>, T{0.0});
+        return std::make_tuple(Matrix3<T>{}, T{0.0});
     }
 
     void update(const std::array<T, N_THRUSTERS>& thrusts)
     {
         // Get "added mass" effects.
-        const auto [m_added, moi_added] = added_mass();
+        const auto [moi_added, m_added] = added_mass();
 
         // Get net thrust force in body frame.
         Vector3<T> net_thrust_force;

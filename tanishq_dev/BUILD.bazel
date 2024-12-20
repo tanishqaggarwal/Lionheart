@@ -11,10 +11,10 @@ platformio_project(
 cc_library(
     name = "dynamics",
     srcs = ["dynamics.cc"],
+    deps = [":linalg"]
 )
 
 cc_library(
     name = "linalg",
-    srcs = ["linalg.cc"],
     hdrs = ["linalg.h"],
 )

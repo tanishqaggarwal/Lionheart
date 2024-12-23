@@ -2,42 +2,52 @@
 
 #include <Arduino.h>
 #include <Adafruit_Sensor.h>
-// #include <Adafruit_LSM303.h>
-// #include <Adafruit_LSM303_Accel.h>
-// #include <Adafruit_L3GD20_U.h>
-#include <Adafruit_SPIDevice.h>
-#include <Adafruit_I2CRegister.h>
-#include <Adafruit_BusIO_Register.h>
+#include <Adafruit_LSM303_U.h>
+#include <Adafruit_L3GD20_U.h>
 #include <Adafruit_9DOF.h>
+#include <Wire.h>
 
 // Timing variables
-unsigned long startTime = 0;
-unsigned long lastEndTime = 0;
+float loop_start_ms = 0.0;
+float loop_end_ms = 0.0;
 
 // 20 Hz
-const uint32_t CONTROL_CYCLE_TIME_ms = 1 / 20 * 1000;
-
-sensors_event_t accel_event;
-sensors_vec_t   orientation;
+const float CONTROL_CYCLE_TIME_ms = 50.0;
 
 Adafruit_LSM303_Accel_Unified accel;
 Adafruit_9DOF dof;
 
+
 void setup() {
   // put your setup code here, to run once:
+
+  Serial.begin(115200);
+  Serial.println("Setting Up...");
+
+  if(!accel.begin())
+  {
+    /* There was a problem detecting the LSM303 ... check your connections */
+    Serial.println(F("Ooops, no LSM303 detected ... Check your wiring!"));
+    while(1);
+  }
+
+  dof.begin();
 
 }
 
 void loop() {
-  startTime = millis();
+  loop_start_ms = static_cast<float>(micros()) / 1000.0;
 
-  if (lastEndTime - startTime > CONTROL_CYCLE_TIME_ms)
+  if (loop_start_ms - loop_end_ms < CONTROL_CYCLE_TIME_ms)
   {
     delay(1); // Wait 1 millisecond in between polls.
     return;
   }
 
   // Do work here:
+  sensors_event_t accel_event;
+  sensors_vec_t   orientation;
+
   accel.getEvent(&accel_event);
   if (dof.accelGetOrientation(&accel_event, &orientation))
   {
@@ -48,10 +58,11 @@ void loop() {
     Serial.print(F("Pitch: "));
     Serial.print(orientation.pitch);
     Serial.print(F("; "));
+    Serial.println();
   }
 
-  lastEndTime = millis();
+  loop_end_ms = static_cast<float>(micros()) / 1000.0;
 
-  Serial.print("Loop Time: ");
-  Serial.println(lastEndTime - startTime);
+  Serial.print("Loop Time ms: ");
+  Serial.println(loop_end_ms - loop_start_ms);
 }

@@ -7,7 +7,7 @@
 
 namespace Lionheart {
 
-/// Type definition for index in the CFD mesh.
+/// Type definition for cell index in the CFD mesh.
 using MeshIndex = size_t;
 
 /// @brief Default definition for mesh parameters.
@@ -22,7 +22,6 @@ template <typename T> struct DefaultMeshParams {
   static constexpr MeshIndex nX{500};
   static constexpr MeshIndex nY{500};
   static constexpr MeshIndex nZ{500};
-  static constexpr MeshIndex nElements = nX * nY * nZ;
 
   /// Characteristic fluid velocity on Mesh.
   static constexpr T uc{1.0}; // m/s
@@ -61,6 +60,7 @@ struct CFDMesh {
   template <typename Tf> class Field {
   private:
     std::vector<Tf> storage;
+    static constexpr MeshIndex nElements = MeshParams::nX * MeshParams::nY * MeshParams::nZ;
 
     /// Notes on Mesh indexing:
     ///
@@ -104,8 +104,12 @@ struct CFDMesh {
       return storage.at(i);
     }
 
+    Tf val(const MeshIndex i) const {
+      return storage.at(i);
+    }
+
   public:
-    Field() : storage(MeshParams::nElements) {}
+    Field() : storage(nElements) {}
 
     Tf &operator()(const MeshIndex xi, const MeshIndex yi, const MeshIndex zi) {
       return val(xi, yi, zi);
@@ -116,7 +120,7 @@ struct CFDMesh {
     }
 
     static constexpr size_t size() {
-      return sizeof(Tf) * MeshParams::nElements;
+      return sizeof(Tf) * nElements;
     }
   };
 
@@ -140,6 +144,17 @@ struct CFDMesh {
                 const MeshIndex zi) const;
     T partial_zz(const MeshIndex xi, const MeshIndex yi,
                  const MeshIndex zi) const;
+
+    /// This vectorized dot-product can be used to perform matrix-vector
+    /// operations.
+    T dot(const ScalarField& other) {
+      T sum {0.0};
+      for(MeshIndex i = 0; i < nElements; i++)
+      {
+        sum += this->val(i) * other->val(i);
+      }
+      return sum;
+    }
   };
 
   /// @brief Class for a vector field
@@ -202,9 +217,8 @@ private:
   VectorField velocity; // Velocity
 
   struct Scratchpad {
-    VectorField velocityStar;    // u_star
-    VectorField velocityNext;    // u_next
-    ScalarField divVelocityStar; // nabla . u_star
+    VectorField velocity;    // u_next or u_star
+    ScalarField divVelocity; // nabla . u_star
 
     // TODO add more fields
 

@@ -85,14 +85,13 @@ void CFDMesh<T, MeshParams>::apply_boundary_condition(
 
 template <typename T, typename MeshParams>
 void CFDMesh<T, MeshParams>::compute_fluxes() {
-  // Create shortcuts
   const auto &boundary = this->boundary;
   const auto &u = this->velocity.x;
   const auto &v = this->velocity.y;
   const auto &w = this->velocity.z;
-  auto &uStar = this->scratchpad.velocityStar.x;
-  auto &vStar = this->scratchpad.velocityStar.y;
-  auto &wStar = this->scratchpad.velocityStar.z;
+  auto &uStar = this->scratchpad.velocity.x;
+  auto &vStar = this->scratchpad.velocity.y;
+  auto &wStar = this->scratchpad.velocity.z;
 
   run_kernel([&boundary, &u, &v, &w, &uStar, &vStar,
               &wStar](size_t xi, size_t yi, size_t zi) {
@@ -135,9 +134,9 @@ template <typename T, typename MeshParams>
 void CFDMesh<T, MeshParams>::compute_pressure() {
   // Store rho/dt nabla . u_star
   const auto &boundary = this->boundary;
-  const auto &uStar = this->scratchpad.velocityStar.x;
-  const auto &vStar = this->scratchpad.velocityStar.y;
-  const auto &wStar = this->scratchpad.velocityStar.z;
+  const auto &uStar = this->scratchpad.velocity.x;
+  const auto &vStar = this->scratchpad.velocity.y;
+  const auto &wStar = this->scratchpad.velocity.z;
   auto &div = this->scratchpad.divVelocityStar;
   run_kernel([&boundary, &uStar, &vStar, &wStar, &div](size_t xi, size_t yi,
                                                        size_t zi) {
@@ -152,7 +151,7 @@ void CFDMesh<T, MeshParams>::compute_pressure() {
   // I think what we want to do here is use
   // https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
   // which is a low-storage method for iteratively finding the solution to
-  // p.
+  // pressure.
   // TODO
 }
 
@@ -160,12 +159,12 @@ template <typename T, typename MeshParams>
 void CFDMesh<T, MeshParams>::compute_next_velocity() {
   const auto &boundary = this->boundary;
   const auto &P = this->pressure;
-  const auto &uStar = this->scratchpad.velocityStar.x;
-  const auto &vStar = this->scratchpad.velocityStar.y;
-  const auto &wStar = this->scratchpad.velocityStar.z;
-  auto &uNext = this->scratchpad.velocityNext.x;
-  auto &vNext = this->scratchpad.velocityNext.y;
-  auto &wNext = this->scratchpad.velocityNext.z;
+  const auto &uStar = this->scratchpad.velocity.x;
+  const auto &vStar = this->scratchpad.velocity.y;
+  const auto &wStar = this->scratchpad.velocity.z;
+  auto &uNext = this->scratchpad.velocity.x;
+  auto &vNext = this->scratchpad.velocity.y;
+  auto &wNext = this->scratchpad.velocity.z;
 
   run_kernel([&boundary, &P, &uStar, &vStar, &wStar, &uNext, &vNext,
               &wNext](size_t xi, size_t yi, size_t zi) {
@@ -197,12 +196,11 @@ CFDMesh<T, MeshParams>::get_body_force_and_torque(
     const CFDMesh<T, MeshParams>::Field<Vector3<T>> &normals,
     const Vector3<T> &cg) const {
   Vector3<T> force, torque;
-  const auto &P = pressure;
 
   for (size_t xi = 0; xi < MeshParams::nX; xi++) {
     for (size_t yi = 0; yi < MeshParams::nY; yi++) {
       for (size_t zi = 0; zi < MeshParams::nZ; zi++) {
-        const auto dF = normals(xi, yi, zi) * P(xi, yi, zi);
+        const auto dF = normals(xi, yi, zi) * this->pressure(xi, yi, zi);
         force += dF;
         torque += (Vector3<T>{xi * MeshParams::dx, yi * MeshParams::dy,
                               zi * MeshParams::dz} -

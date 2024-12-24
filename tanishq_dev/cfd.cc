@@ -7,6 +7,22 @@
 #include <string_view>
 #include <tuple>
 
+struct MeshParams {
+  /// Mesh discretization
+  static constexpr float dx{2e-3}; // m
+  static constexpr float dy{2e-3}; // m
+  static constexpr float dz{2e-3}; // m
+  static constexpr float dt{1e-4}; // s
+
+  /// Mesh size
+  static constexpr Lionheart::MeshIndex nX{500};
+  static constexpr Lionheart::MeshIndex nY{500};
+  static constexpr Lionheart::MeshIndex nZ{500};
+
+  /// Characteristic fluid velocity on Mesh.
+  static constexpr float uc{1.0}; // m/s
+};
+
 using CFDMesh = Lionheart::CFDMesh<float, Lionheart::DefaultMeshParams<float>>;
 using Lionheart::Vector3f;
 

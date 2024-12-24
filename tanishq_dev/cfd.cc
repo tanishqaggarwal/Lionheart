@@ -58,10 +58,11 @@ template <typename T> struct CFDMeshT {
   static constexpr T uc{1.0}; // m/s
   static_assert(uc * dt / dx < 0.1);
 
-  /// @brief Class for a mathematical field, used by the CFD mesh code.
-  ///
-  /// @tparam T Type of variable stored in the field (vectors, scalars, etc.)
-  struct Field {
+  /// Storage for quantities defined on the mesh.
+  template <typename Tf> class Field {
+  private:
+    std::vector<Tf> storage;
+
     /// Notes on indexing:
     ///
     /// The eventual goal is that fields are indexed such that their entries
@@ -78,12 +79,13 @@ template <typename T> struct CFDMeshT {
     };
     static constexpr IndexScheme idx_scheme = IndexScheme::CARTESIAN;
 
+    // Returns an index in the array based on provided coordinates
     static constexpr Index index(const Index xi, const Index yi,
                                  const Index zi) {
       if constexpr (idx_scheme == IndexScheme::CARTESIAN) {
         return ((xi * nX) + yi * nY) + zi;
       } else if constexpr (idx_scheme == IndexScheme::MORTON_Z) {
-        //// TODO
+        //// TODO implement Morton Z curve
         return 0;
       }
 
@@ -91,81 +93,96 @@ template <typename T> struct CFDMeshT {
       return 0;
     }
 
-  private:
-    std::vector<T> storage;
-
-    T &val(const Index xi, const Index yi, const Index zi) {
+  protected:
+    Tf &val(const Index xi, const Index yi, const Index zi) {
       Index i = index(xi, yi, zi);
       return storage.at(i);
     }
 
-    const T &val(const Index xi, const Index yi, const Index zi) const {
+    const Tf &val(const Index xi, const Index yi, const Index zi) const {
       Index i = index(xi, yi, zi);
       return storage.at(i);
     }
 
   public:
     explicit Field(Index size) : storage(size) {}
+  };
+
+  /// @brief Class for a scalar field, used by the CFD mesh code.
+  ///
+  /// @tparam T Type of variable stored in the field (vectors, scalars, etc.)
+  class ScalarField : public Field<T> {
+  public:
+    explicit ScalarField(Index size) : Field<T>(size) {}
 
     T &operator()(const Index xi, const Index yi, const Index zi) {
-      return val(xi, yi, zi);
+      return Field<T>::val(xi, yi, zi);
     }
     const T &operator()(const Index xi, const Index yi, const Index zi) const {
-      return val(xi, yi, zi);
+      return Field<T>::val(xi, yi, zi);
     }
 
     T partial_x(const Index xi, const Index yi, const Index zi) const {
       if (xi >= nX - 1 || xi == 0)
         return T{0.0};
-      return (0.5 / dx) * (val(xi + 1, yi, zi) - val(xi - 1, yi, zi));
+      return 0.5 *
+             (Field<T>::val(xi + 1, yi, zi) - Field<T>::val(xi - 1, yi, zi)) /
+             dx;
     }
 
     T partial_xx(const Index xi, const Index yi, const Index zi) const {
       if (xi >= nX - 1 || xi == 0)
         return T{0.0};
-      return (1 / (dx * dx)) *
-             (val(xi + 1, yi, zi) - 2 * val(xi, yi, zi) + val(xi - 1, yi, zi));
+      return (Field<T>::val(xi + 1, yi, zi) - 2 * Field<T>::val(xi, yi, zi) +
+              Field<T>::val(xi - 1, yi, zi)) /
+             (dx * dx);
     }
 
     T partial_y(const Index xi, const Index yi, const Index zi) const {
       if (yi >= nY - 1 || yi == 0)
         return T{0.0};
-      return (0.5 / dy) * (val(xi, yi + 1, zi) - val(xi, yi - 1, zi));
+      return 0.5 *
+             (Field<T>::val(xi, yi + 1, zi) - Field<T>::val(xi, yi - 1, zi)) /
+             dy;
     }
 
     T partial_yy(const Index xi, const Index yi, const Index zi) const {
       if (yi >= nY - 1 || yi == 0)
         return T{0.0};
-      return (1 / (dy * dy)) *
-             (val(xi, yi + 1, zi) - 2 * val(xi, yi, zi) + val(xi, yi - 1, zi));
+      return (Field<T>::val(xi, yi + 1, zi) - 2 * Field<T>::val(xi, yi, zi) +
+              Field<T>::val(xi, yi - 1, zi)) /
+             (dy * dy);
     }
 
     T partial_z(const Index xi, const Index yi, const Index zi) const {
       if (zi >= nZ - 1 || zi == 0)
         return T{0.0};
-      return (0.5 / dz) * (val(xi, yi, zi + 1) - val(xi, yi, zi - 1));
+      return 0.5 *
+             (Field<T>::val(xi, yi, zi + 1) - Field<T>::val(xi, yi, zi - 1)) /
+             dz;
     }
 
     T partial_zz(const Index xi, const Index yi, const Index zi) const {
       if (zi >= nZ - 1 || zi == 0)
         return T{0.0};
-      return (1 / (dz * dz)) *
-             (val(xi, yi, zi + 1) - 2 * val(xi, yi, zi) + val(xi, yi, zi - 1));
+      return (Field<T>::val(xi, yi, zi + 1) - 2 * Field<T>::val(xi, yi, zi) +
+              Field<T>::val(xi, yi, zi - 1)) /
+             (dz * dz);
     }
   };
 
   /// @brief Class for a vector field
   struct VectorField {
-    Field x;
-    Field y;
-    Field z;
+    ScalarField x;
+    ScalarField y;
+    ScalarField z;
 
     explicit VectorField(Index nElements)
         : x(nElements), y(nElements), z(nElements) {}
   };
 
   /// Fields that we're solving for.
-  Field pressure{nElements};       // Pressure
+  ScalarField pressure{nElements}; // Pressure
   VectorField velocity{nElements}; // Velocity
 
   /// Fluid density - chosen to be seawater here
@@ -211,7 +228,7 @@ private:
   VectorField velocityNext{nElements}; // u_next
 
   struct PressureCalculationFields {
-    Field divVelocityStar{nElements}; // nabla . u_star
+    ScalarField divVelocityStar{nElements}; // nabla . u_star
 
     /// TODO add more fields
   } pressure_scratchpad;
@@ -233,12 +250,12 @@ private:
   }
 
   void apply_boundary_condition(const VectorField &bc) {
-    const Field &uB = bc.x;
-    const Field &vB = bc.y;
-    const Field &wB = bc.z;
-    Field &u = this->velocity.x;
-    Field &v = this->velocity.y;
-    Field &w = this->velocity.z;
+    const ScalarField &uB = bc.x;
+    const ScalarField &vB = bc.y;
+    const ScalarField &wB = bc.z;
+    ScalarField &u = this->velocity.x;
+    ScalarField &v = this->velocity.y;
+    ScalarField &w = this->velocity.z;
     run_kernel([&uB, &vB, &wB, &u, &v, &w](size_t xi, size_t yi, size_t zi) {
       const T uBi = uB(xi, yi, zi);
       const T vBi = vB(xi, yi, zi);
@@ -261,12 +278,12 @@ private:
     // 1/dt (u_star - u) = - u cdot nabla u
 
     // Create shortcuts
-    const Field &u = this->velocity.x;
-    const Field &v = this->velocity.y;
-    const Field &w = this->velocity.z;
-    Field &uStar = this->velocityStar.x;
-    Field &vStar = this->velocityStar.y;
-    Field &wStar = this->velocityStar.z;
+    const ScalarField &u = this->velocity.x;
+    const ScalarField &v = this->velocity.y;
+    const ScalarField &w = this->velocity.z;
+    ScalarField &uStar = this->velocityStar.x;
+    ScalarField &vStar = this->velocityStar.y;
+    ScalarField &wStar = this->velocityStar.z;
 
     run_kernel(
         [&u, &v, &w, &uStar, &vStar, &wStar](size_t xi, size_t yi, size_t zi) {
@@ -293,7 +310,8 @@ private:
   ///
   /// More precisely, since the Laplacian is too large to compute explicitly,
   /// this function computes destination = Laplacian * source.
-  void ppe_laplacian_product(const Field &source, Field &destination) {
+  void ppe_laplacian_product(const ScalarField &source,
+                             ScalarField &destination) {
     /// TODO correctly compute Laplacian, given bounds and stuff.
   }
 
@@ -303,10 +321,10 @@ private:
     // nabla^2 p = rho/dt nabla . u_star
 
     /// Store rho/dt nabla . u_star
-    const Field &uStar = this->velocityStar.x;
-    const Field &vStar = this->velocityStar.y;
-    const Field &wStar = this->velocityStar.z;
-    Field &div = this->pressure_scratchpad.divVelocityStar;
+    const ScalarField &uStar = this->velocityStar.x;
+    const ScalarField &vStar = this->velocityStar.y;
+    const ScalarField &wStar = this->velocityStar.z;
+    ScalarField &div = this->pressure_scratchpad.divVelocityStar;
     run_kernel([&uStar, &vStar, &wStar, &div](size_t xi, size_t yi, size_t zi) {
       div(xi, yi, zi) = uStar.partial_x(xi, yi, zi) +
                         vStar.partial_y(xi, yi, zi) +
@@ -324,13 +342,13 @@ private:
     //
     // 1/dt (u_next - u_star) = -1/rho nabla p;
 
-    const Field &P = this->pressure;
-    const Field &uStar = this->velocityStar.x;
-    const Field &vStar = this->velocityStar.y;
-    const Field &wStar = this->velocityStar.z;
-    Field &uNext = this->velocityNext.x;
-    Field &vNext = this->velocityNext.y;
-    Field &wNext = this->velocityNext.z;
+    const ScalarField &P = this->pressure;
+    const ScalarField &uStar = this->velocityStar.x;
+    const ScalarField &vStar = this->velocityStar.y;
+    const ScalarField &wStar = this->velocityStar.z;
+    ScalarField &uNext = this->velocityNext.x;
+    ScalarField &vNext = this->velocityNext.y;
+    ScalarField &wNext = this->velocityNext.z;
 
     run_kernel([&P, &uStar, &vStar, &wStar, &uNext, &vNext,
                 &wNext](size_t xi, size_t yi, size_t zi) {
@@ -345,7 +363,8 @@ private:
 };
 
 template <typename T>
-void swap(typename CFDMeshT<T>::Field &lhs, typename CFDMeshT<T>::Field rhs) {
+void swap(typename CFDMeshT<T>::ScalarField &lhs,
+          typename CFDMeshT<T>::ScalarField rhs) {
   std::swap(lhs.storage, rhs.storage);
 }
 

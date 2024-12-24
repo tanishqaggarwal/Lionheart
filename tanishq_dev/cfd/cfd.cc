@@ -97,8 +97,7 @@ template <typename T> struct CFDMeshT {
       return storage.at(i);
     }
 
-    const T &val(const Index xi, const Index yi,
-                           const Index zi) const {
+    const T &val(const Index xi, const Index yi, const Index zi) const {
       Index i = index(xi, yi, zi);
       return storage.at(i);
     }
@@ -109,50 +108,43 @@ template <typename T> struct CFDMeshT {
     T &operator()(const Index xi, const Index yi, const Index zi) {
       return val(xi, yi, zi);
     }
-    const T &operator()(const Index xi, const Index yi,
-                                  const Index zi) const {
+    const T &operator()(const Index xi, const Index yi, const Index zi) const {
       return val(xi, yi, zi);
     }
 
-    T partial_x(const Index xi, const Index yi,
-                          const Index zi) const {
+    T partial_x(const Index xi, const Index yi, const Index zi) const {
       if (xi >= nX - 1 || xi == 0)
         return T{0.0};
       return (0.5 / dx) * (val(xi + 1, yi, zi) - val(xi - 1, yi, zi));
     }
 
-    T partial_xx(const Index xi, const Index yi,
-                           const Index zi) const {
+    T partial_xx(const Index xi, const Index yi, const Index zi) const {
       if (xi >= nX - 1 || xi == 0)
         return T{0.0};
       return (1 / (dx * dx)) *
              (val(xi + 1, yi, zi) - 2 * val(xi, yi, zi) + val(xi - 1, yi, zi));
     }
 
-    T partial_y(const Index xi, const Index yi,
-                          const Index zi) const {
+    T partial_y(const Index xi, const Index yi, const Index zi) const {
       if (yi >= nY - 1 || yi == 0)
         return T{0.0};
       return (0.5 / dy) * (val(xi, yi + 1, zi) - val(xi, yi - 1, zi));
     }
 
-    T partial_yy(const Index xi, const Index yi,
-                           const Index zi) const {
+    T partial_yy(const Index xi, const Index yi, const Index zi) const {
       if (yi >= nY - 1 || yi == 0)
         return T{0.0};
       return (1 / (dy * dy)) *
              (val(xi, yi + 1, zi) - 2 * val(xi, yi, zi) + val(xi, yi - 1, zi));
     }
 
-    T partial_z(const Index xi, const Index yi,
-                          const Index zi) const {
+    T partial_z(const Index xi, const Index yi, const Index zi) const {
       if (zi >= nZ - 1 || zi == 0)
         return T{0.0};
       return (0.5 / dz) * (val(xi, yi, zi + 1) - val(xi, yi, zi - 1));
     }
 
-    T partial_zz(const Index xi, const Index yi,
-                           const Index zi) const {
+    T partial_zz(const Index xi, const Index yi, const Index zi) const {
       if (zi >= nZ - 1 || zi == 0)
         return T{0.0};
       return (1 / (dz * dz)) *
@@ -174,10 +166,6 @@ template <typename T> struct CFDMeshT {
   Field pressure{nElements};       // Pressure
   VectorField velocity{nElements}; // Velocity
 
-  /// Intermediate scratchpads for solution of fields.
-  VectorField velocityStar{nElements};
-  VectorField velocityNext{nElements};
-
   /// Fluid density - chosen to be seawater here
   static constexpr T rho{1030.0}; // kg/m^3
 
@@ -196,6 +184,16 @@ template <typename T> struct CFDMeshT {
   }
 
 private:
+  /// Intermediate scratchpads for solution of fields.
+  VectorField velocityStar{nElements}; // u_star
+  VectorField velocityNext{nElements}; // u_next
+
+  struct PressureCalculationFields {
+    Field divVelocityStar{nElements}; // nabla . u_star
+
+    /// TODO add more fields
+  } pressure_scratchpad;
+
   /// Executor for any method over the mesh.
   ///
   /// Currently this is just a nested for-loop; later we may take advantage of
@@ -269,12 +267,34 @@ private:
         });
   }
 
+  /// Provides the Laplacian for solving the PPE equation.
+  ///
+  /// More precisely, since the Laplacian is too large to compute explicitly,
+  /// this function computes destination = Laplacian * source.
+  void ppe_laplacian_product(const Field &source, Field &destination) {
+    /// TODO correctly compute Laplacian, given bounds and stuff.
+  }
+
   void compute_pressure() {
     // Solves the equation
     //
     // nabla^2 p = rho/dt nabla . u_star
 
-    // TODO need sparse method for solution to linear system
+    /// Store rho/dt nabla . u_star
+    const Field &uStar = this->velocityStar.x;
+    const Field &vStar = this->velocityStar.y;
+    const Field &wStar = this->velocityStar.z;
+    Field &div = this->pressure_scratchpad.divVelocityStar;
+    run_kernel([&uStar, &vStar, &wStar, &div](size_t xi, size_t yi, size_t zi) {
+      div(xi, yi, zi) = uStar.partial_x(xi, yi, zi) +
+                        vStar.partial_y(xi, yi, zi) +
+                        wStar.partial_z(xi, yi, zi);
+    });
+
+    /// I think what we want to do here is use
+    /// https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
+    /// which is a low-storage method for iteratively finding the solution to
+    /// p.
   }
 
   void compute_next_velocity() {
@@ -308,7 +328,8 @@ void swap(typename CFDMeshT<T>::Field &lhs, typename CFDMeshT<T>::Field rhs) {
 }
 
 template <typename T>
-void swap(typename CFDMeshT<T>::VectorField &lhs, typename CFDMeshT<T>::VectorField rhs) {
+void swap(typename CFDMeshT<T>::VectorField &lhs,
+          typename CFDMeshT<T>::VectorField rhs) {
   std::swap(lhs.x, rhs.x);
   std::swap(lhs.y, rhs.y);
   std::swap(lhs.z, rhs.z);
@@ -316,9 +337,9 @@ void swap(typename CFDMeshT<T>::VectorField &lhs, typename CFDMeshT<T>::VectorFi
 
 using CFDMesh = CFDMeshT<float>;
 
-int main() { 
-    CFDMesh mesh;
+int main() {
+  CFDMesh mesh;
 
-    CFDMesh::VectorField bc{CFDMesh::nElements};
-    mesh.step(bc);
+  CFDMesh::VectorField bc{CFDMesh::nElements};
+  mesh.step(bc);
 }

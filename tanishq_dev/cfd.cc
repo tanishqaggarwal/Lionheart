@@ -1,10 +1,12 @@
-#include "tanishq_dev/cfd/stl_reader.h"
+#include "tanishq_dev/linalg.h"
+#include "tanishq_dev/stl_reader.h"
 #include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <string_view>
 #include <tuple>
 
+namespace {
 /// Not using this yet; will assume the Rover is a cube, for simplicity.
 using StlMesh = stl_reader::StlMesh<float, unsigned int>;
 
@@ -173,14 +175,34 @@ template <typename T> struct CFDMeshT {
   T tval{0.0};
 
   /// Main "step" method for the CFD.
-  T step(const VectorField &bc) {
+  ///
+  /// The whole point of this evaluation is to get net force and torque on the
+  /// body, so that's what this method returns.
+  ///
+  /// @brief bc Boundary conditions to the vector field (i.e. the velocity along
+  /// the surface of the rover body.)
+  ///   This field is structured such that its elements are NaN in cells where
+  ///   the body is not present, so that we don't impose a boundary condition in
+  ///   those cells.
+  /// @brief normals Surface normals to the rover body. This field is structure
+  /// such that its elements are NaN
+  ///   in cells where the body is not present.
+  /// @brief cg The coordinates of the cell in which the CG of the rover is
+  /// located. Used for computing torque.
+  ///
+  /// @returns A tuple: (force, torque, time).
+  ///
+  std::tuple<Lionheart::Vector3<T>, Lionheart::Vector3<T>, T>
+  step(const VectorField &bc, const VectorField &normals,
+       const Lionheart::Vector3<T> &cg) {
     apply_boundary_condition(bc);
     compute_fluxes();
     compute_pressure();
     compute_next_velocity();
     tval += dt;
     std::swap(velocity, velocityNext);
-    return tval;
+    return std::make_tuple(Lionheart::Vector3<T>{}, Lionheart::Vector3<T>{},
+                           tval);
   }
 
 private:
@@ -267,7 +289,7 @@ private:
         });
   }
 
-  /// Provides the Laplacian for solving the PPE equation.
+  /// Provides the Laplacian for solving the Poisson pressure equation.
   ///
   /// More precisely, since the Laplacian is too large to compute explicitly,
   /// this function computes destination = Laplacian * source.
@@ -334,12 +356,20 @@ void swap(typename CFDMeshT<T>::VectorField &lhs,
   std::swap(lhs.y, rhs.y);
   std::swap(lhs.z, rhs.z);
 }
+} // namespace
 
+namespace Lionheart {
 using CFDMesh = CFDMeshT<float>;
+}
 
 int main() {
+  using Lionheart::CFDMesh;
   CFDMesh mesh;
 
+  /// TODO populate inputs to CFD solution
   CFDMesh::VectorField bc{CFDMesh::nElements};
-  mesh.step(bc);
+  CFDMesh::VectorField normals{CFDMesh::nElements};
+  Lionheart::Vector3f cg{};
+
+  mesh.step(bc, normals, cg);
 }

@@ -6,6 +6,7 @@
 
 #pragma once
 #include <cmath>
+#include <stdexcept>
 
 namespace Lionheart
 {
@@ -252,5 +253,7 @@ Matrix3<T> operator/(const Matrix3<T>& m, const T c) noexcept
 {
     return {m.r1 / c, m.r2 / c, m.r3 / c};
 }
+
+using Vector3f = Vector3<float>;
 
 } // namespace Lionheart

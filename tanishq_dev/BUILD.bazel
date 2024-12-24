@@ -18,3 +18,14 @@ cc_library(
     name = "linalg",
     hdrs = ["linalg.h"],
 )
+
+cc_binary(
+    name = "cfd",
+    srcs = ["cfd.cc"],
+    deps = [":stl_reader", ":linalg"]
+)
+
+cc_library(
+    name = "stl_reader",
+    hdrs = ["stl_reader.h"]
+)

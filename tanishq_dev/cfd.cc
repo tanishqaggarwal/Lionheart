@@ -85,11 +85,11 @@ template <typename T> struct CFDMeshT {
       if constexpr (idx_scheme == IndexScheme::CARTESIAN) {
         return ((xi * nX) + yi * nY) + zi;
       } else if constexpr (idx_scheme == IndexScheme::MORTON_Z) {
-        //// TODO implement Morton Z curve
+        // TODO implement Morton Z curve
         return 0;
       }
 
-      /// Impossible, but required for compilation
+      // Impossible, but required for compilation
       return 0;
     }
 
@@ -218,6 +218,8 @@ template <typename T> struct CFDMeshT {
     compute_next_velocity();
     tval += dt;
     std::swap(velocity, velocityNext);
+
+    // TODO compute force and torque
     return std::make_tuple(Lionheart::Vector3<T>{}, Lionheart::Vector3<T>{},
                            tval);
   }
@@ -230,7 +232,7 @@ private:
   struct PressureCalculationFields {
     ScalarField divVelocityStar{nElements}; // nabla . u_star
 
-    /// TODO add more fields
+    // TODO add more fields
   } pressure_scratchpad;
 
   /// Executor for any method over the mesh.
@@ -312,7 +314,7 @@ private:
   /// this function computes destination = Laplacian * source.
   void ppe_laplacian_product(const ScalarField &source,
                              ScalarField &destination) {
-    /// TODO correctly compute Laplacian, given bounds and stuff.
+    // TODO correctly compute Laplacian, given bounds and stuff.
   }
 
   void compute_pressure() {
@@ -320,7 +322,7 @@ private:
     //
     // nabla^2 p = rho/dt nabla . u_star
 
-    /// Store rho/dt nabla . u_star
+    // Store rho/dt nabla . u_star
     const ScalarField &uStar = this->velocityStar.x;
     const ScalarField &vStar = this->velocityStar.y;
     const ScalarField &wStar = this->velocityStar.z;
@@ -331,11 +333,11 @@ private:
                         wStar.partial_z(xi, yi, zi);
     });
 
-    /// I think what we want to do here is use
-    /// https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
-    /// which is a low-storage method for iteratively finding the solution to
-    /// p.
-    /// TODO
+    // I think what we want to do here is use
+    // https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
+    // which is a low-storage method for iteratively finding the solution to
+    // p.
+    // TODO
   }
 
   void compute_next_velocity() {
@@ -386,7 +388,7 @@ int main() {
   using Lionheart::CFDMesh;
   CFDMesh mesh;
 
-  /// TODO populate inputs to CFD solution
+  // TODO populate inputs to CFD solution
   CFDMesh::VectorField bc{CFDMesh::nElements};
   CFDMesh::VectorField normals{CFDMesh::nElements};
   Lionheart::Vector3f cg{};

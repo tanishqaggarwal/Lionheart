@@ -335,6 +335,7 @@ private:
     /// https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
     /// which is a low-storage method for iteratively finding the solution to
     /// p.
+    /// TODO
   }
 
   void compute_next_velocity() {

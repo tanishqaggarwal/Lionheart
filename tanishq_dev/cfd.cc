@@ -106,6 +106,13 @@ template <typename T> struct CFDMeshT {
 
   public:
     explicit Field(Index size) : storage(size) {}
+
+    Tf &operator()(const Index xi, const Index yi, const Index zi) {
+      return val(xi, yi, zi);
+    }
+    const Tf &operator()(const Index xi, const Index yi, const Index zi) const {
+      return val(xi, yi, zi);
+    }
   };
 
   /// @brief Class for a scalar field, used by the CFD mesh code.
@@ -114,13 +121,6 @@ template <typename T> struct CFDMeshT {
   class ScalarField : public Field<T> {
   public:
     explicit ScalarField(Index size) : Field<T>(size) {}
-
-    T &operator()(const Index xi, const Index yi, const Index zi) {
-      return Field<T>::val(xi, yi, zi);
-    }
-    const T &operator()(const Index xi, const Index yi, const Index zi) const {
-      return Field<T>::val(xi, yi, zi);
-    }
 
     T partial_x(const Index xi, const Index yi, const Index zi) const {
       if (xi >= nX - 1 || xi == 0)
@@ -210,7 +210,8 @@ template <typename T> struct CFDMeshT {
   /// @returns A tuple: (force, torque, time).
   ///
   std::tuple<Lionheart::Vector3<T>, Lionheart::Vector3<T>, T>
-  step(const VectorField &bc, const VectorField &normals,
+  step(const Field<Lionheart::Vector3<T>> &bc,
+       const Field<Lionheart::Vector3<T>> &normals,
        const Lionheart::Vector3<T> &cg) {
     apply_boundary_condition(bc);
     compute_fluxes();
@@ -219,9 +220,8 @@ template <typename T> struct CFDMeshT {
     tval += dt;
     std::swap(velocity, velocityNext);
 
-    // TODO compute force and torque
-    return std::make_tuple(Lionheart::Vector3<T>{}, Lionheart::Vector3<T>{},
-                           tval);
+    const auto [force, torque] = get_body_force_and_torque(normals, cg);
+    return std::make_tuple(force, torque, tval);
   }
 
 private:
@@ -251,25 +251,16 @@ private:
     }
   }
 
-  void apply_boundary_condition(const VectorField &bc) {
-    const ScalarField &uB = bc.x;
-    const ScalarField &vB = bc.y;
-    const ScalarField &wB = bc.z;
+  void apply_boundary_condition(const Field<Lionheart::Vector3<T>> &bc) {
     ScalarField &u = this->velocity.x;
     ScalarField &v = this->velocity.y;
     ScalarField &w = this->velocity.z;
-    run_kernel([&uB, &vB, &wB, &u, &v, &w](size_t xi, size_t yi, size_t zi) {
-      const T uBi = uB(xi, yi, zi);
-      const T vBi = vB(xi, yi, zi);
-      const T wBi = wB(xi, yi, zi);
-      if (!std::isnan(uBi)) {
-        u(xi, yi, zi) = uBi;
-      }
-      if (!std::isnan(vBi)) {
-        v(xi, yi, zi) = vBi;
-      }
-      if (!std::isnan(wBi)) {
-        w(xi, yi, zi) = wBi;
+    run_kernel([&bc, &u, &v, &w](size_t xi, size_t yi, size_t zi) {
+      const Lionheart::Vector3<T> uB = bc(xi, yi, zi);
+      if (!uB.isnan()) {
+        u(xi, yi, zi) = uB.x;
+        v(xi, yi, zi) = uB.y;
+        w(xi, yi, zi) = uB.z;
       }
     });
   }
@@ -363,6 +354,25 @@ private:
           wStar(xi, yi, zi) - (dt / rho) * P.partial_z(xi, yi, zi);
     });
   }
+
+  std::tuple<Lionheart::Vector3<T>, Lionheart::Vector3<T>>
+  get_body_force_and_torque(const Field<Lionheart::Vector3<T>> &normals,
+                            const Lionheart::Vector3<T> &cg) const {
+    Lionheart::Vector3<T> force, torque;
+    const auto &P = pressure;
+
+    for (size_t xi = 0; xi < nX; xi++) {
+      for (size_t yi = 0; yi < nY; yi++) {
+        for (size_t zi = 0; zi < nZ; zi++) {
+          const auto dF = normals(xi, yi, zi) * P(xi, yi, zi);
+          force += dF;
+          torque +=
+              (Lionheart::Vector3<T>{xi * dx, yi * dy, zi * dz} - cg).cross(dF);
+        }
+      }
+    }
+    return std::make_tuple(force, torque);
+  }
 };
 
 template <typename T>
@@ -389,8 +399,8 @@ int main() {
   CFDMesh mesh;
 
   // TODO populate inputs to CFD solution
-  CFDMesh::VectorField bc{CFDMesh::nElements};
-  CFDMesh::VectorField normals{CFDMesh::nElements};
+  CFDMesh::Field<Lionheart::Vector3f> bc{CFDMesh::nElements};
+  CFDMesh::Field<Lionheart::Vector3f> normals{CFDMesh::nElements};
   Lionheart::Vector3f cg{};
 
   mesh.step(bc, normals, cg);

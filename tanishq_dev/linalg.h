@@ -77,6 +77,11 @@ struct Vector3
             default: throw std::runtime_error{"invalid vector access"};
         }
     }
+
+    [[nodiscard]] bool isnan() const
+    {
+        return std::isnan(x) || std::isnan(y) || std::isnan(z);
+    }
 };
 
 template<typename T>

@@ -1,0 +1,10 @@
+cc_binary(
+    name = "cfd",
+    srcs = ["cfd.cc"],
+    deps = [":stl_reader"]
+)
+
+cc_library(
+    name = "stl_reader",
+    hdrs = ["stl_reader.h"]
+)

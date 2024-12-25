@@ -68,16 +68,11 @@ void loop() {
   {
     Telemetry::imu.heading = orientation.heading;
   }
-  Serial.println();
 
   loop_end_ms = static_cast<float>(micros()) / 1000.0;
 
-  uptime_ms = millis();
-
-  Serial.print("Loop Time ms: ");
-  Serial.print(loop_end_ms - loop_start_ms);
-  Serial.print(", Uptime ms: ");
-  Serial.println(uptime_ms);
+  Telemetry::imu.uptime_ms = static_cast<uint32_t>(millis());
+  Telemetry::imu.loop_time_ms = loop_end_ms - loop_start_ms;
 
   Telemetry::imu.writePacket();
   Serial.write(Telemetry::imu.packet, Telemetry::imu.PACKET_SIZE_BYTES);

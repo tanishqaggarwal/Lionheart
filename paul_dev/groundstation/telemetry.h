@@ -7,27 +7,38 @@ namespace Telemetry {
         float roll;
         float pitch;
         float heading;
+        uint32_t uptime_ms;
+        float loop_time_ms;
 
         const static uint32_t PACKET_SIZE_BYTES = 
-            sizeof(START_DELIMITER) + 4
-            + sizeof(roll) + sizeof(pitch) + sizeof(heading);
+            sizeof(START_DELIMITER) + 
+            sizeof(uint32_t) + // Reserved field for later differentiating between packet types.
+            sizeof(roll) + 
+            sizeof(pitch) + 
+            sizeof(heading) + 
+            sizeof(uptime_ms) + 
+            sizeof(loop_time_ms);
 
         char packet[PACKET_SIZE_BYTES];
 
         void writePacket()
         {
             packet[0] = START_DELIMITER;
-            packet[1] = 3;
-            memcpy(&packet[2], &roll, sizeof(roll));
-            memcpy(&packet[6], &pitch, sizeof(pitch));
-            memcpy(&packet[10], &heading, sizeof(heading));
+            // memcpy(&packet[1], &roll, sizeof(roll));
+            memcpy(&packet[5], &roll, sizeof(roll));
+            memcpy(&packet[9], &pitch, sizeof(pitch));
+            memcpy(&packet[13], &heading, sizeof(heading));
+            memcpy(&packet[17], &uptime_ms, sizeof(uptime_ms));
+            memcpy(&packet[21], &loop_time_ms, sizeof(loop_time_ms));
         }
 
         void decodePacket(char* arriving_packet)
         {
-            memcpy(&roll, &arriving_packet[2], sizeof(roll));
-            memcpy(&pitch, &arriving_packet[6], sizeof(pitch));
-            memcpy(&heading, &arriving_packet[10], sizeof(heading));
+            memcpy(&roll, &arriving_packet[5], sizeof(roll));
+            memcpy(&pitch, &arriving_packet[9], sizeof(pitch));
+            memcpy(&heading, &arriving_packet[13], sizeof(heading));
+            memcpy(&uptime_ms, &arriving_packet[17], sizeof(uptime_ms));
+            memcpy(&loop_time_ms, &arriving_packet[21], sizeof(loop_time_ms));
         }
     }
     imu;

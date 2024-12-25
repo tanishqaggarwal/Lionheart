@@ -6,6 +6,7 @@
 #include <Adafruit_L3GD20_U.h>
 #include <Adafruit_9DOF.h>
 #include <Wire.h>
+#include "telemetry.h"
 
 // Timing variables
 float loop_start_ms = 0.0;
@@ -57,23 +58,15 @@ void loop() {
   accel.getEvent(&accel_event);
   if (dof.accelGetOrientation(&accel_event, &orientation))
   {
-    /* 'orientation' should have valid .roll and .pitch fields */
-    Serial.print(F("Roll: "));
-    Serial.print(orientation.roll);
-    Serial.print(F("; "));
-    Serial.print(F("Pitch: "));
-    Serial.print(orientation.pitch);
-    Serial.print(F("; "));
+    Telemetry::imu.roll = orientation.roll;
+    Telemetry::imu.pitch = orientation.pitch;
   }
 
   /* Calculate the heading using the magnetometer */
   mag.getEvent(&mag_event);
   if (dof.magGetOrientation(SENSOR_AXIS_Z, &mag_event, &orientation))
   {
-    /* 'orientation' should have valid .heading data now */
-    Serial.print(F("Heading: "));
-    Serial.print(orientation.heading);
-    Serial.print(F("; "));
+    Telemetry::imu.heading = orientation.heading;
   }
   Serial.println();
 
@@ -85,4 +78,7 @@ void loop() {
   Serial.print(loop_end_ms - loop_start_ms);
   Serial.print(", Uptime ms: ");
   Serial.println(uptime_ms);
+
+  Telemetry::imu.writePacket();
+  Serial.write(Telemetry::imu.packet, Telemetry::imu.PACKET_SIZE_BYTES);
 }

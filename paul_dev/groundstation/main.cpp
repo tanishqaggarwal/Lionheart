@@ -3,6 +3,13 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <fstream>
+
+#include "telemetry.h"
+
+#include <ctime>
+
+constexpr uint32_t BUFFER_SIZE = 256;
 
 int main(int argc, char *argv[]) {
 
@@ -25,8 +32,8 @@ int main(int argc, char *argv[]) {
     tcgetattr(fd, &tty);
 
     // Set serial port settings (baud rate, parity, etc.)
-    cfsetospeed(&tty, B9600); // Example: 9600 baud
-    cfsetispeed(&tty, B9600);
+    cfsetospeed(&tty, B115200);
+    cfsetispeed(&tty, B115200);
 
     tty.c_cflag &= ~PARENB; // No parity
     tty.c_cflag &= ~CSTOPB; // 1 stop bit
@@ -41,14 +48,33 @@ int main(int argc, char *argv[]) {
 
     tcsetattr(fd, TCSANOW, &tty);
 
-    char buffer[256];
+    char buffer[BUFFER_SIZE];
     ssize_t bytesRead;
 
+    time_t now = time(0);
+
+    char filename[100];
+    std::snprintf(filename, sizeof(filename), "paul_dev/data/%lu.txt", now);
+    std::ofstream outputFile(filename);
+
+    outputFile << "Roll,Pitch,Heading\n";
     while (true) {
         bytesRead = read(fd, buffer, sizeof(buffer));
         if (bytesRead > 0) {
             std::string data(buffer, bytesRead);
             std::cout << "Received: " << data << std::endl;
+
+            // Find packets and write to csv if found.
+            for (uint32_t i=0; i < BUFFER_SIZE; ++i)
+            {
+                if (buffer[i] == Telemetry::START_DELIMITER)
+                {
+                    std::cout << "Writing: " << std::endl;
+                    Telemetry::imu.decodePacket(&buffer[i]);
+                    outputFile << Telemetry::imu.roll << "," << Telemetry::imu.pitch << "," << Telemetry::imu.heading << "\n";
+                }
+            }
+
         }
         usleep(100000); // Wait 100ms between reads
     }

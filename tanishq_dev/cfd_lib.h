@@ -118,8 +118,8 @@ struct CFDMesh {
 
     Field() : storage(nElements) {}
 
-    /// Do not provide this as an operator overload; copies should
-    /// be explicit since they are expensive.
+    /// Do not provide this as an operator overload; copies should be explicit
+    /// since they are expensive.
     void copy(const Field<Tf>& other) {
       this->storage = other.storage;
     }

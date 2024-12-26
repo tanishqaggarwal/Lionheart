@@ -7,12 +7,13 @@
 #include <string_view>
 #include <tuple>
 
-struct MeshParams {
+template<typename T>
+struct TestMeshParams {
   /// Mesh discretization
-  static constexpr float dx{2e-3}; // m
-  static constexpr float dy{2e-3}; // m
-  static constexpr float dz{2e-3}; // m
-  static constexpr float dt{1e-4}; // s
+  static constexpr T dx{2e-3}; // m
+  static constexpr T dy{2e-3}; // m
+  static constexpr T dz{2e-3}; // m
+  static constexpr T dt{1e-4}; // s
 
   /// Mesh size
   static constexpr Lionheart::MeshIndex nX{500};
@@ -20,10 +21,15 @@ struct MeshParams {
   static constexpr Lionheart::MeshIndex nZ{500};
 
   /// Characteristic fluid velocity on Mesh.
-  static constexpr float uc{1.0}; // m/s
+  static constexpr T uc{1.0}; // m/s
+
+  /// Stopping criteria for Pressure Poisson equation solver.
+  static constexpr T ppe_s_stop = 1e-6;
+  static constexpr T ppe_x_stop = 1e-6;
+  static constexpr size_t ppe_max_iterations = 10;
 };
 
-using CFDMesh = Lionheart::CFDMesh<float, Lionheart::DefaultMeshParams<float>>;
+using CFDMesh = Lionheart::CFDMesh<float, TestMeshParams<float>>;
 using Lionheart::Vector3f;
 
 static constexpr size_t RAM_LIMIT{32'000'000'000}; // bytes

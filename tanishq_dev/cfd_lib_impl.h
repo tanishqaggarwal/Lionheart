@@ -66,8 +66,8 @@ T CFDMesh<T, MeshParams>::ScalarField::partial_zz(const MeshIndex xi,
 template <typename T, typename MeshParams>
 void CFDMesh<T, MeshParams>::bicgstab_init()
 {
-  const auto& s = this->scratchpad;
-  const auto& b = s.velocity;
+  auto& s = this->scratchpad;
+  const auto& b = s.divVelocity;
 
   s.x.copy(this->pressure);
 
@@ -88,7 +88,7 @@ void CFDMesh<T, MeshParams>::bicgstab_init()
 template <typename T, typename MeshParams>
 bool CFDMesh<T, MeshParams>::bicgstab_step(T s_stop, T x_stop)
 {
-  const auto& s = this->scratchpad;
+  auto& s = this->scratchpad;
 
   // v = A p_(i-1)
   ppe_laplacian_product(s.p, s.v);
@@ -97,11 +97,11 @@ bool CFDMesh<T, MeshParams>::bicgstab_step(T s_stop, T x_stop)
 
   // s = r_(i-1) - alpha v_i
   run_basic_kernel([&s, alpha](MeshIndex i) {
-    s.at(i) = s.r.at(i) - alpha * s.v.at(i);
+    s.s.at(i) = s.r.at(i) - alpha * s.v.at(i);
   });
 
   // Quit and return x_i = h if s is small enough
-  if (s.s.square_magnitude() < s_stop)
+  if (s.s.magnitude() < s_stop)
   {
     // h = x - alpha * p
     run_basic_kernel([&s, alpha](MeshIndex i) {
@@ -121,7 +121,7 @@ bool CFDMesh<T, MeshParams>::bicgstab_step(T s_stop, T x_stop)
   });
 
   // Quit if x is small enough
-  if (s.x.square_magnitude() < s_stop)
+  if (s.x.magnitude() < s_stop)
   {
     return true;
   }
@@ -207,7 +207,22 @@ template <typename T, typename MeshParams>
 void CFDMesh<T, MeshParams>::ppe_laplacian_product(
     const CFDMesh<T, MeshParams>::ScalarField &source,
     CFDMesh<T, MeshParams>::ScalarField &destination) {
-  // TODO correctly compute Laplacian, given bounds and stuff.
+  run_kernel([&source, &destination](MeshIndex xi, MeshIndex yi, MeshIndex zi)
+  {
+    const auto p_imjk = xi == 0 ? 0.0 : source(xi-1, yi, zi);
+    const auto p_ipjk = xi == MeshParams::nX - 1 ? 0.0 : source(xi+1, yi, zi);
+    const auto p_ijmk = yi == 0 ? 0.0 : source(xi, yi-1, zi);
+    const auto p_ijpk = yi == MeshParams::nY - 1 ? 0.0 : source(xi, yi+1, zi);
+    const auto p_ijkm = zi == 0 ? 0.0 : source(xi, yi, zi-1);
+    const auto p_ijkp = zi == MeshParams::nZ - 1 ? 0.0 : source(xi, yi, zi+1);
+    const auto p_ijk = source(xi, yi, zi);
+
+    const auto div_x = (p_imjk - 2 * p_ijk + p_ipjk) / (MeshParams::dx * MeshParams::dx);
+    const auto div_y = (p_ijmk - 2 * p_ijk + p_ijpk) / (MeshParams::dy * MeshParams::dy);
+    const auto div_z = (p_ijkm - 2 * p_ijk + p_ijkp) / (MeshParams::dz * MeshParams::dz);
+
+    destination(xi, yi, zi) = div_x + div_y + div_z;
+  });
 }
 
 template <typename T, typename MeshParams>
@@ -228,11 +243,20 @@ void CFDMesh<T, MeshParams>::compute_pressure() {
                       vStar.partial_y(xi, yi, zi) + wStar.partial_z(xi, yi, zi);
   });
 
-  // I think what we want to do here is use
-  // https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
-  // which is a low-storage method for iteratively finding the solution to
-  // pressure.
-  // TODO
+  // Solve the linear system to find p.
+  bicgstab_init();
+
+  for(size_t i = 0; i < MeshParams::ppe_max_iterations; i++)
+  {
+    const bool converged = bicgstab_step(MeshParams::ppe_s_stop,  MeshParams::ppe_x_stop);
+    if (converged)
+    {
+      break;
+    }
+  }
+
+  // Copy-out pressure solution.
+  std::swap(this->scratchpad.x, this->pressure);
 }
 
 template <typename T, typename MeshParams>

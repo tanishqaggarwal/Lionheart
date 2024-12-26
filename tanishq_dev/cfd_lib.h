@@ -25,6 +25,11 @@ template <typename T> struct DefaultMeshParams {
 
   /// Characteristic fluid velocity on Mesh.
   static constexpr T uc{1.0}; // m/s
+
+  /// Stopping criteria for Pressure Poisson equation solver.
+  static constexpr T ppe_s_stop = 1e-6;
+  static constexpr T ppe_x_stop = 1e-6;
+  static constexpr size_t ppe_max_iterations = 10;
 };
 
 /// @brief Defines the computational mesh for solution of the Navier-Stokes
@@ -60,7 +65,6 @@ struct CFDMesh {
   template <typename Tf> class Field {
   private:
     std::vector<Tf> storage;
-    static constexpr MeshIndex nElements = MeshParams::nX * MeshParams::nY * MeshParams::nZ;
 
     /// Notes on Mesh indexing:
     ///
@@ -109,13 +113,14 @@ struct CFDMesh {
     }
 
   public:
+    static constexpr MeshIndex nElements = MeshParams::nX * MeshParams::nY * MeshParams::nZ;
+
     Field() : storage(nElements) {}
 
     /// Do not provide this as an operator overload; copies should
     /// be explicit since they are expensive.
     void copy(const Field<Tf>& other) {
       this->storage = other.storage;
-      return *this;
     }
 
     Tf dot(const Field<Tf>& other) const {
@@ -175,7 +180,7 @@ struct CFDMesh {
       T sum {0.0};
       for(MeshIndex i = 0; i < Field<T>::nElements; i++)
       {
-        sum += this->val(i) * other->val(i);
+        sum += this->val(i) * other.val(i);
       }
       return sum;
     }
@@ -187,6 +192,10 @@ struct CFDMesh {
         sum += this->val(i) * this->val(i);
       }
       return sum;
+    }
+
+    T magnitude() const {
+      return std::sqrt(this->square_magnitude());
     }
   };
 
@@ -266,12 +275,13 @@ private:
     static constexpr size_t size() { return ScalarField::size(); }
   } scratchpad;
 
+  /// @brief Initializes the BiCGSTAB method.
   void bicgstab_init();
 
   /// @brief Implements a step of the BiCGSTAB method.
   ///
-  /// @param s_stop
-  /// @param x_stop
+  /// @param s_stop Stopping criterion for magnitude of s.
+  /// @param x_stop Stopping criterion for magnitude of x.
   /// @return True if the method converged within the criterion, false otherwise.
   bool bicgstab_step(T s_stop, T x_stop);
 

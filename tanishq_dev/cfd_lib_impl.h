@@ -64,6 +64,86 @@ T CFDMesh<T, MeshParams>::ScalarField::partial_zz(const MeshIndex xi,
 }
 
 template <typename T, typename MeshParams>
+void CFDMesh<T, MeshParams>::bicgstab_init()
+{
+  const auto& s = this->scratchpad;
+  const auto& b = s.velocity;
+
+  s.x.copy(this->pressure);
+
+  // Compute r0 = b - A x_0
+  ppe_laplacian_product(s.x, s.r0);
+  run_kernel([&s, &b](MeshIndex xi, MeshIndex yi, MeshIndex zi) {
+    s.r0(xi, yi, zi) -= b(xi, yi, zi);
+    s.r0(xi, yi, zi) *= -1;
+  });
+
+  // Compute rho0
+  s.rho = s.r0.square_magnitude();
+
+  // Compute p0
+  s.p.copy(s.r0);
+}
+
+template <typename T, typename MeshParams>
+bool CFDMesh<T, MeshParams>::bicgstab_step(T s_stop, T x_stop)
+{
+  const auto& s = this->scratchpad;
+
+  // v = A p_(i-1)
+  ppe_laplacian_product(s.p, s.v);
+
+  const auto alpha = s.rho / (s.r0.dot(s.v));
+
+  // s = r_(i-1) - alpha v_i
+  run_basic_kernel([&s, alpha](MeshIndex i) {
+    s.at(i) = s.r.at(i) - alpha * s.v.at(i);
+  });
+
+  // Quit and return x_i = h if s is small enough
+  if (s.s.square_magnitude() < s_stop)
+  {
+    // h = x - alpha * p
+    run_basic_kernel([&s, alpha](MeshIndex i) {
+      s.x.at(i) = s.x.at(i) + alpha * s.p.at(i);
+    });
+    return true;
+  }
+
+  // t = A s
+  ppe_laplacian_product(s.s, s.t);
+
+  // x = h + s omega
+  const auto omega = s.t.dot(s.s) / s.t.square_magnitude();
+  run_basic_kernel([&s, alpha, omega](MeshIndex i) {
+    const auto hi = s.x.at(i) + alpha * s.p.at(i);
+    s.x.at(i) = hi + omega * s.s.at(i);
+  });
+
+  // Quit if x is small enough
+  if (s.x.square_magnitude() < s_stop)
+  {
+    return true;
+  }
+
+  // r = s - omega t  
+  run_basic_kernel([&s, omega](MeshIndex i) {
+    s.r.at(i) = s.s.at(i) - omega * s.t.at(i);
+  });
+
+  const auto rho_prev = s.rho;
+  s.rho = s.r0.dot(s.r);
+  const auto beta = (s.rho/rho_prev) * (alpha/omega);
+
+  // p_i = r_i + beta(p_(i-1) - omega v)
+  run_basic_kernel([&s, omega, beta](MeshIndex i) {
+    s.p.at(i) = s.r.at(i) - beta * (s.p.at(i) - omega * s.v.at(i));
+  });
+
+  return false;
+}
+
+template <typename T, typename MeshParams>
 void CFDMesh<T, MeshParams>::apply_boundary_condition(
     const CFDMesh<T, MeshParams>::Field<Vector3<T>> &bc) {
   auto &boundary = this->boundary;
@@ -137,7 +217,7 @@ void CFDMesh<T, MeshParams>::compute_pressure() {
   const auto &uStar = this->scratchpad.velocity.x;
   const auto &vStar = this->scratchpad.velocity.y;
   const auto &wStar = this->scratchpad.velocity.z;
-  auto &div = this->scratchpad.divVelocityStar;
+  auto &div = this->scratchpad.divVelocity;
   run_kernel([&boundary, &uStar, &vStar, &wStar, &div](size_t xi, size_t yi,
                                                        size_t zi) {
     if (boundary(xi, yi, zi) == 1) {

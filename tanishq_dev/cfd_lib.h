@@ -111,6 +111,30 @@ struct CFDMesh {
   public:
     Field() : storage(nElements) {}
 
+    /// Do not provide this as an operator overload; copies should
+    /// be explicit since they are expensive.
+    void copy(const Field<Tf>& other) {
+      this->storage = other.storage;
+      return *this;
+    }
+
+    Tf dot(const Field<Tf>& other) const {
+      Tf result = 0;
+      for(size_t i = 0; i < nElements; i++)
+      {
+        result += this->storage[i] * other.storage[i];
+      }
+      return result;
+    }
+
+    Tf& at(const MeshIndex i) {
+      return storage.at(i);
+    }
+
+    const Tf& at(const MeshIndex i) const {
+      return storage.at(i);
+    }
+
     Tf &operator()(const MeshIndex xi, const MeshIndex yi, const MeshIndex zi) {
       return val(xi, yi, zi);
     }
@@ -147,11 +171,20 @@ struct CFDMesh {
 
     /// This vectorized dot-product can be used to perform matrix-vector
     /// operations.
-    T dot(const ScalarField& other) {
+    T dot(const ScalarField& other) const {
       T sum {0.0};
-      for(MeshIndex i = 0; i < nElements; i++)
+      for(MeshIndex i = 0; i < Field<T>::nElements; i++)
       {
         sum += this->val(i) * other->val(i);
+      }
+      return sum;
+    }
+
+    T square_magnitude() const {
+      T sum {0.0};
+      for(MeshIndex i = 0; i < Field<T>::nElements; i++)
+      {
+        sum += this->val(i) * this->val(i);
       }
       return sum;
     }
@@ -199,7 +232,7 @@ struct CFDMesh {
     compute_pressure();
     compute_next_velocity();
     tval += MeshParams::dt;
-    std::swap(velocity, scratchpad.velocityNext);
+    std::swap(velocity, scratchpad.velocity);
 
     const auto [force, torque] = get_body_force_and_torque(normals, cg);
     return std::make_tuple(force, torque, tval);
@@ -220,10 +253,27 @@ private:
     VectorField velocity;    // u_next or u_star
     ScalarField divVelocity; // nabla . u_star
 
-    // TODO add more fields
+    /// Fields for pressure Poisson equation
+    ScalarField x;
+    ScalarField v;
+    ScalarField p;
+    ScalarField r;
+    ScalarField r0;
+    ScalarField s;
+    ScalarField t;
+    T rho;
 
     static constexpr size_t size() { return ScalarField::size(); }
   } scratchpad;
+
+  void bicgstab_init();
+
+  /// @brief Implements a step of the BiCGSTAB method.
+  ///
+  /// @param s_stop
+  /// @param x_stop
+  /// @return True if the method converged within the criterion, false otherwise.
+  bool bicgstab_step(T s_stop, T x_stop);
 
 public:
   static constexpr size_t size() {
@@ -245,6 +295,18 @@ private:
           kernel(xi, yi, zi);
         }
       }
+    }
+  }
+
+  /// Executor for any method over fields.
+  ///
+  /// Currently this is just a for-loop; later we may take advantage of
+  /// GPUs. Can also produce statistics on progress of a step, for example.
+  template <typename FunctionT>
+  void run_basic_kernel(FunctionT kernel,
+                  [[maybe_unused]] const std::string_view debug_info = "") {
+    for (MeshIndex i = 0; i < Field<T>::nElements; i++) {
+      kernel(i);
     }
   }
 

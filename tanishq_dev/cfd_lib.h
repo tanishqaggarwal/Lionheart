@@ -4,6 +4,7 @@
 #include <memory>
 #include <string_view>
 #include <tuple>
+#include <vector>
 
 namespace Lionheart {
 

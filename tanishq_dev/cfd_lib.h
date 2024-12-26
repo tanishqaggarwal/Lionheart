@@ -273,7 +273,7 @@ private:
     ScalarField t;
     T rho;
 
-    static constexpr size_t size() { return VectorField::size() + 8 * ScalarField::size(); }
+    static constexpr size_t size() { return VectorField::size() + 8 * ScalarField::size() + sizeof(T); }
   } scratchpad;
 
   /// @brief Initializes the BiCGSTAB method.

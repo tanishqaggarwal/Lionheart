@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSV Plotter</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+<body>
+  <h1>CSV Plotter</h1>
+  <input type="file" id="csvFile" accept=".csv,.txt">
+  <canvas id="chart" width="800" height="400"></canvas>
+
+  <script>
+    const fileInput = document.getElementById('csvFile');
+    const ctx = document.getElementById('chart').getContext('2d');
+
+    let chart; // To store the chart instance
+
+    fileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                complete: function (results) {
+                plotData(results.data);
+                },
+            });
+        }
+    });
+
+    function plotData(data) {
+      // Assuming the CSV has "label" and "value" columns
+      const labels = data.map(row => row.Uptime_ms);
+      const values = data.map(row => row.Roll);
+
+      if (chart) chart.destroy(); // Clear previous chart
+
+      chart = new Chart(ctx, {
+        type: 'line', // Change to 'line', 'pie', etc., if needed
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'CSV Data',
+            data: values,
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+  </script>
+</body>
+</html>

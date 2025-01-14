@@ -1,4 +1,4 @@
-Roll,Pitch,Heading,Uptime(ms),LoopTime(ms)
+Roll,Pitch,Heading,Uptime_ms,LoopTime_ms
 -1.38591,-3.28217e-15,6.6064e-16,4232282338,6.72623e-44
 -1.155,0,257.471,12595,3.45215
 -2.10378,0.233701,257.118,12649,3.58008

@@ -32,19 +32,19 @@
     });
 
     function plotData(data) {
-      // Assuming the CSV has "label" and "value" columns
-      const labels = data.map(row => row.Uptime_ms);
-      const values = data.map(row => row.Roll);
+
+      const x_values = data.map(row => row.Uptime_ms);
+      const y_values = data.map(row => row.Roll);
 
       if (chart) chart.destroy(); // Clear previous chart
 
       chart = new Chart(ctx, {
         type: 'line', // Change to 'line', 'pie', etc., if needed
         data: {
-          labels: labels,
+          labels: x_values,
           datasets: [{
             label: 'CSV Data',
-            data: values,
+            data: y_values,
             backgroundColor: 'rgba(75, 192, 192, 0.2)',
             borderColor: 'rgba(75, 192, 192, 1)',
             borderWidth: 1

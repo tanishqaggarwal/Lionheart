@@ -39,25 +39,17 @@
       if (chart) chart.destroy(); // Clear previous chart
 
       chart = new Chart(ctx, {
-        type: 'line', // Change to 'line', 'pie', etc., if needed
+        type: 'scatter',
         data: {
-          labels: x_values,
           datasets: [{
             label: 'CSV Data',
-            data: y_values,
+            data: x_values.map((val, index) => [val, y_values[index]]),
             backgroundColor: 'rgba(75, 192, 192, 0.2)',
             borderColor: 'rgba(75, 192, 192, 1)',
-            borderWidth: 1
+            borderWidth: 1,
+            showLine: true,
           }]
         },
-        options: {
-          responsive: true,
-          scales: {
-            y: {
-              beginAtZero: true
-            }
-          }
-        }
       });
     }
 

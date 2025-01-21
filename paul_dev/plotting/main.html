@@ -10,10 +10,12 @@
 <body>
   <h1>CSV Plotter</h1>
   <input type="file" id="csvFile" accept=".csv,.txt">
+  <button type="button" id="refreshButton" onclick="resetFileInput()">Refresh</button>
   <canvas id="chart" width="800" height="400"></canvas>
 
   <script>
     const fileInput = document.getElementById('csvFile');
+    const refreshButton = document.getElementById("refreshButton");
     const ctx = document.getElementById('chart').getContext('2d');
 
     let chart; // To store the chart instance
@@ -31,12 +33,34 @@
         }
     });
 
+    // TODO: Fix this function. Have to figure out how to read a file
+    // that is modified after an initial read.
+    function resetFileInput() {
+      const newInput = fileInput.cloneNode(true); // Clone the input element
+
+      const file = newInput.files[0];
+      console.log(file);
+      Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                complete: function (results) {
+                  console.log("Finished:", results.data);
+                  plotData(results.data);
+                },
+                error: (e) => {
+                  console.log('failed to parse', e.message);
+                }
+            });
+    }
+
     function plotData(data) {
 
       const x_values = data.map(row => row.Uptime_ms);
       const y_values = data.map(row => row.Roll);
 
       if (chart) chart.destroy(); // Clear previous chart
+
+      console.log("Plotting");
 
       chart = new Chart(ctx, {
         type: 'scatter',

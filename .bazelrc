@@ -1,1 +1,2 @@
-build --action_env=BAZEL_CXXOPTS="-std=c++20"
+build:linux --action_env=BAZEL_CXXOPTS="-std=c++20"
+build:macos --action_env=BAZEL_CXXOPTS="-std=c++20"

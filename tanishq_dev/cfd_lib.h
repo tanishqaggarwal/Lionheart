@@ -4,6 +4,7 @@
 #include <memory>
 #include <string_view>
 #include <tuple>
+#include <vector>
 
 namespace Lionheart {
 
@@ -117,8 +118,8 @@ struct CFDMesh {
 
     Field() : storage(nElements) {}
 
-    /// Do not provide this as an operator overload; copies should
-    /// be explicit since they are expensive.
+    /// Do not provide this as an operator overload; copies should be explicit
+    /// since they are expensive.
     void copy(const Field<Tf>& other) {
       this->storage = other.storage;
     }
@@ -272,7 +273,7 @@ private:
     ScalarField t;
     T rho;
 
-    static constexpr size_t size() { return ScalarField::size(); }
+    static constexpr size_t size() { return VectorField::size() + 8 * ScalarField::size() + sizeof(T); }
   } scratchpad;
 
   /// @brief Initializes the BiCGSTAB method.

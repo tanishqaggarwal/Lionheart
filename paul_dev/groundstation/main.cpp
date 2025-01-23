@@ -57,20 +57,17 @@ int main(int argc, char *argv[]) {
     std::snprintf(filename, sizeof(filename), "paul_dev/data/%lu.txt", now);
     std::ofstream outputFile(filename);
 
-    outputFile << "Roll,Pitch,Heading,Uptime(ms),LoopTime(ms)\n";
+    outputFile << "Roll,Pitch,Heading,Uptime_ms,LoopTime_ms\n";
     while (true) {
         bytesRead = read(fd, buffer, sizeof(buffer));
         if (bytesRead > 0) {
-            // Find packets and write to csv if found.
-            for (uint32_t i=0; i < BUFFER_SIZE; ++i)
+            for (uint32_t i=0; i < bytesRead; ++i)
             {
-                if (buffer[i] == Telemetry::START_DELIMITER)
+                if (Telemetry::imu.processByte(buffer[i]))
                 {
-                    Telemetry::imu.decodePacket(&buffer[i]);
                     outputFile << Telemetry::imu.roll << "," << Telemetry::imu.pitch << "," << Telemetry::imu.heading << "," << Telemetry::imu.uptime_ms << "," << Telemetry::imu.loop_time_ms << "\n";
                 }
             }
-
         }
         usleep(100000); // Wait 100ms between reads
     }

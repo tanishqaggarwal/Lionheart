@@ -20,6 +20,7 @@ namespace Telemetry {
             sizeof(loop_time_ms);
 
         char packet[PACKET_SIZE_BYTES];
+        uint32_t packet_i = 0;
 
         void writePacket()
         {
@@ -32,13 +33,31 @@ namespace Telemetry {
             memcpy(&packet[21], &loop_time_ms, sizeof(loop_time_ms));
         }
 
-        void decodePacket(char* arriving_packet)
+        void _decodePacket(char* arriving_packet)
         {
             memcpy(&roll, &arriving_packet[5], sizeof(roll));
             memcpy(&pitch, &arriving_packet[9], sizeof(pitch));
             memcpy(&heading, &arriving_packet[13], sizeof(heading));
             memcpy(&uptime_ms, &arriving_packet[17], sizeof(uptime_ms));
             memcpy(&loop_time_ms, &arriving_packet[21], sizeof(loop_time_ms));
+        }
+
+        bool processByte(char byte)
+        {
+            if (byte == START_DELIMITER)
+            {
+                packet_i = 0;
+            }
+
+            packet[packet_i++] = byte;
+
+            if (packet_i == PACKET_SIZE_BYTES)
+            {
+                _decodePacket(packet);
+                return true;
+            }
+
+            return false;
         }
     }
     imu;

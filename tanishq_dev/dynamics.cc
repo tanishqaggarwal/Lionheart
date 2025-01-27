@@ -88,6 +88,9 @@ struct RoverT
 
         // TODO compute drag force, current disturbances
 
+        // TODO: Control signal goes here
+
+
         // Aggregate torques and forces
         Vector3<T> net_torque_body = buoyancy_torque + net_thrust_torque;
         Vector3<T> net_force_inertial = buoyancy_force + attitude.value * net_thrust_force;

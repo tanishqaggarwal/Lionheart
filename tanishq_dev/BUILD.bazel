@@ -35,3 +35,10 @@ cc_library(
     name = "stl_reader",
     hdrs = ["stl_reader.h"]
 )
+
+cc_library(
+    name = "controller",
+    hdrs = ["controller.h"],
+    srcs = ["controller.cc"],
+    deps = [":linalg"]
+)

@@ -4,3 +4,11 @@
 #
 # For more details, please check https://github.com/bazelbuild/bazel/issues/18958
 ###############################################################################
+
+bazel_dep(name = "rules_cc", version = "0.0.15")
+
+# Place this in your MODULE.bazel file.
+# The major version of nanobind-bazel is equal to the version
+# of the internally used nanobind.
+# In this case, we are building bindings with nanobind v2.4.0.
+bazel_dep(name = "nanobind_bazel", version = "2.4.0")

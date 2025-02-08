@@ -226,8 +226,7 @@ struct CFDMesh {
   ///   the body is not present, so that we don't impose a boundary condition in
   ///   those cells.
   /// @brief normals Surface normals to the rover body. This field is structure
-  /// such that its elements are NaN
-  ///   in cells where the body is not present.
+  /// such that its elements are NaN in cells where the body is not present.
   /// @brief cg The coordinates of the cell in which the CG of the rover is
   /// located. Used for computing torque.
   ///

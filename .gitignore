@@ -29,3 +29,4 @@ eclipse-*bin/
 .bazelversion
 # User-specific .bazelrc
 user.bazelrc
+MODULE.bazel.lock

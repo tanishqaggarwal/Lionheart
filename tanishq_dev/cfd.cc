@@ -9,20 +9,21 @@
 
 using Lionheart::Vector3f;
 
-/// @brief Tests CFD solution for a rover that is completely still.
-class StillRoverTestcase {
+/// @brief Tests CFD solution for a "moving lid", which is a classic
+/// example for testing CFD codes.
+class MovingLidTestcase {
 private:
   struct MeshParams {
     /// Mesh discretization
-    static constexpr float dx{2e-3}; // m
-    static constexpr float dy{2e-3}; // m
-    static constexpr float dz{2e-3}; // m
+    static constexpr float dx{1e-2}; // m
+    static constexpr float dy{1e-2}; // m
+    static constexpr float dz{1e-2}; // m
     static constexpr float dt{1e-4}; // s
 
     /// Mesh size
-    static constexpr Lionheart::MeshIndex nX{500};
-    static constexpr Lionheart::MeshIndex nY{500};
-    static constexpr Lionheart::MeshIndex nZ{500};
+    static constexpr Lionheart::MeshIndex nX{100};
+    static constexpr Lionheart::MeshIndex nY{100};
+    static constexpr Lionheart::MeshIndex nZ{100};
 
     /// Characteristic fluid velocity on Mesh.
     static constexpr float uc{1.0}; // m/s
@@ -38,26 +39,23 @@ private:
   static constexpr size_t RAM_LIMIT{32'000'000'000}; // bytes
   static_assert(CFDMesh::size() <= RAM_LIMIT);
 
+  static constexpr size_t N_TIMESTEPS = 100;
+
 public:
-  StillRoverTestcase() {
+  MovingLidTestcase() {
     // Create mesh. Will take a while due to memory allocation.
     CFDMesh mesh;
 
-    // Populate inputs to CFD solution from STL.
-    CFDMesh::Field<Vector3f> bc; // This should be zero; the fluid is still.
-    CFDMesh::Field<Vector3f> normals; // TODO
+    // Create "moving lid" boundary condition.
+    CFDMesh::Field<Vector3f> bc{{0.0, 0.0, 0.0}};
 
-    // Put rover CG at center of mesh
-    Lionheart::Vector3f cg{};
-    cg(0) = MeshParams::nX/2 * MeshParams::dx;
-    cg(1) = MeshParams::nY/2 * MeshParams::dy;
-    cg(2) = MeshParams::nZ/2 * MeshParams::dz;
-
-    // Perform and then assess dynamics.
-    mesh.step(bc, normals, cg);
+    for(size_t i = 0; i < N_TIMESTEPS; i++) {
+      // Step the solution of the mesh forward in time.
+      mesh.step_mesh(bc);
+    }
   }
 };
 
 int main() {
-  StillRoverTestcase testcase;
+  MovingLidTestcase testcase;
 }

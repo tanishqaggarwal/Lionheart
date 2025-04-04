@@ -1,3 +1,5 @@
+#pragma once
+
 #include "tanishq_dev/linalg.h"
 #include <algorithm>
 #include <cstddef>
@@ -117,6 +119,7 @@ struct CFDMesh {
     static constexpr MeshIndex nElements = MeshParams::nX * MeshParams::nY * MeshParams::nZ;
 
     Field() : storage(nElements) {}
+    explicit Field(Tf initial_value) : storage(nElements, initial_value) {}
 
     /// Do not provide this as an operator overload; copies should be explicit
     /// since they are expensive.
@@ -220,7 +223,7 @@ struct CFDMesh {
   /// The whole point of this evaluation is to get net force and torque on the
   /// body, so that's what this method returns.
   ///
-  /// @brief bc Boundary conditions to the vector field (i.e. the velocity along
+  /// @brief bc Boundary conditions to the flow field (i.e. the velocity along
   /// the surface of the rover body.)
   ///   This field is structured such that its elements are NaN in cells where
   ///   the body is not present, so that we don't impose a boundary condition in
@@ -236,15 +239,23 @@ struct CFDMesh {
   step(const Field<Lionheart::Vector3<T>> &bc,
        const Field<Lionheart::Vector3<T>> &normals,
        const Lionheart::Vector3<T> &cg) {
+    step_mesh(bc);
+    const auto [force, torque] = get_body_force_and_torque(normals, cg);
+    return std::make_tuple(force, torque, tval);
+  }
+
+  /// Step method for just the CFD mesh.
+  ///
+  /// @brief bc Boundary conditions to the flow field.
+  ///
+  void
+  step_mesh(const Field<Lionheart::Vector3<T>> &bc) {
     apply_boundary_condition(bc);
     compute_fluxes();
     compute_pressure();
     compute_next_velocity();
     tval += MeshParams::dt;
     std::swap(velocity, scratchpad.velocity);
-
-    const auto [force, torque] = get_body_force_and_torque(normals, cg);
-    return std::make_tuple(force, torque, tval);
   }
 
   /// Provide pressure so that CFD results can be visualized.

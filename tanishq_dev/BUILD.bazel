@@ -21,6 +21,12 @@ cc_library(
 )
 
 cc_library(
+    name = "quaternion",
+    hdrs = ["quaternion.h"],
+    deps = [":linalg"],
+)
+
+cc_library(
     name = "cfd_lib",
     hdrs = ["cfd_lib.h", "cfd_lib_impl.h"],
     deps = [":linalg"]

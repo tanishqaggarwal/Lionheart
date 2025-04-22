@@ -1,4 +1,4 @@
-#include "tanishq_dev/controller.h"
+#include "controller.h"
 #include "quaternion.h"
 
 namespace Lionheart {
@@ -17,7 +17,7 @@ AttitudeRegulationControllerT<T>::update(const Matrix3<T> &attitude_sns,
     const Quat<T> cmd = to_quat(attitude_cmd);
 
     const Quat<T> err = cmd.product(sns);
-    const Vector<T> p{err.x, err.y, err.z};
+    const Vector3<T> p{err.x, err.y, err.z};
 
     /// 7.7 from Fundamentals of Spacecraft Attitude Determination and Control
     /// by F.Landis Markley, John L. Crassidis.

@@ -12,7 +12,7 @@ platformio_project(
 cc_library(
     name = "dynamics",
     hdrs = ["dynamics.h"],
-    deps = [":linalg"]
+    deps = [":linalg", ":controller"]
 )
 
 cc_library(
@@ -47,7 +47,7 @@ cc_library(
     name = "controller",
     hdrs = ["controller.h"],
     srcs = ["controller.cc"],
-    deps = [":linalg"]
+    deps = [":linalg", ":quaternion"]
 )
 
 nanobind_extension(

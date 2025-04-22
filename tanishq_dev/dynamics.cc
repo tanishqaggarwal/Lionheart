@@ -1,6 +1,7 @@
 #include <array>
 #include <cmath>
 
+#include "controller.h"
 #include "tanishq_dev/linalg.h"
 
 namespace Lionheart {
@@ -28,6 +29,10 @@ template <typename T> struct RoverT {
 
     /// DCM translating vectors from body frame to inertial frame.
     integrated_state_t<Matrix3<T>> attitude;
+
+    /// Commanded attitude value
+    static constexpr Matrix3<T> attitude_cmd = {
+        {T{1}, T{0}, T{0}}, {T{0}, T{1}, T{0}}, {T{0}, T{0}, T{1}}};
 
     /// Total mass of rover (accounting for internal water storage as well.)
     T mass{0.0};
@@ -57,9 +62,17 @@ template <typename T> struct RoverT {
         return std::make_tuple(Matrix3<T>{}, T{0.0});
     }
 
+    AttitudeRegulationControllerT<T> attitude_controller{T{1.0}, T{1.0}};
+
     void update(const std::array<T, N_THRUSTERS> &thrusts) {
         // Get "added mass" effects.
         const auto [moi_added, m_added] = added_mass();
+
+        // Calculate the control signal.
+        Vector3<T> attitude_control_torque = attitude_controller.update(
+            attitude.value, attitude_cmd, angvel.value);
+
+        // TODO: Compute thrust vectors.
 
         // Get net thrust force in body frame.
         Vector3<T> net_thrust_force;
@@ -81,9 +94,7 @@ template <typename T> struct RoverT {
         Vector3<T> buoyancy_torque =
             cb.cross(attitude.value.inverse() * buoyancy_force); // Body frame
 
-        // TODO compute drag force, current disturbances
-
-        // TODO: Control signal goes here
+        // TODO compute drag force, current disturbance.
 
         // Aggregate torques and forces
         Vector3<T> net_torque_body = buoyancy_torque + net_thrust_torque;

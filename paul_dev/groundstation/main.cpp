@@ -1,9 +1,9 @@
+#include <fcntl.h>
+#include <fstream>
 #include <iostream>
 #include <string>
-#include <unistd.h>
-#include <fcntl.h>
 #include <termios.h>
-#include <fstream>
+#include <unistd.h>
 
 #include "telemetry.h"
 
@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
     tty.c_cflag &= ~PARENB; // No parity
     tty.c_cflag &= ~CSTOPB; // 1 stop bit
     tty.c_cflag &= ~CSIZE;
-    tty.c_cflag |= CS8;     // 8 data bits
+    tty.c_cflag |= CS8;      // 8 data bits
     tty.c_cflag &= ~CRTSCTS; // No hardware flow control
 
     tty.c_iflag &= ~(IXON | IXOFF | IXANY); // Disable software flow control
@@ -61,11 +61,13 @@ int main(int argc, char *argv[]) {
     while (true) {
         bytesRead = read(fd, buffer, sizeof(buffer));
         if (bytesRead > 0) {
-            for (uint32_t i=0; i < bytesRead; ++i)
-            {
-                if (Telemetry::imu.processByte(buffer[i]))
-                {
-                    outputFile << Telemetry::imu.roll << "," << Telemetry::imu.pitch << "," << Telemetry::imu.heading << "," << Telemetry::imu.uptime_ms << "," << Telemetry::imu.loop_time_ms << "\n";
+            for (uint32_t i = 0; i < bytesRead; ++i) {
+                if (Telemetry::imu.processByte(buffer[i])) {
+                    outputFile << Telemetry::imu.roll << ","
+                               << Telemetry::imu.pitch << ","
+                               << Telemetry::imu.heading << ","
+                               << Telemetry::imu.uptime_ms << ","
+                               << Telemetry::imu.loop_time_ms << "\n";
                 }
             }
         }

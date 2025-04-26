@@ -1,13 +1,4 @@
-load("@platformio_rules//platformio:platformio.bzl", "platformio_project", "platformio_library")
 load("@nanobind_bazel//:build_defs.bzl", "nanobind_extension")
-
-platformio_project(
-    name = "rover_control",
-    src = "rover_control.cc",
-    board = "teensy41",
-    framework = "arduino",
-    platform = "teensy",
-)
 
 cc_library(
     name = "dynamics",
@@ -62,5 +53,24 @@ py_binary(
     name = "dynamics_test",
     srcs = ["dynamics_test.py"],
     main = "dynamics_test.py",
-    data = [":dynamics_py"]
+    data = [":dynamics_py"],
+    deps = [
+        "@pip//matplotlib",
+        "@pip//numpy",
+        "@pip//vedo",
+    ]
+)
+
+genrule(
+    name = "format_cpp",
+    srcs = glob(["**/*.cc", "**/*.h"]),
+    outs = ["_format_cpp_done"],
+    cmd = "clang-format -i $(SRCS) && touch $@",
+)
+
+genrule(
+    name = "format_py",
+    srcs = glob(["**/*.py"]),
+    outs = ["_format_py_done"],
+    cmd = "black $(SRCS) && touch $@",
 )

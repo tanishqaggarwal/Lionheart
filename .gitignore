@@ -30,3 +30,5 @@ eclipse-*bin/
 # User-specific .bazelrc
 user.bazelrc
 MODULE.bazel.lock
+
+venv/

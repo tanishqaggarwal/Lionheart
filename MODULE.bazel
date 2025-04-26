@@ -5,10 +5,22 @@
 # For more details, please check https://github.com/bazelbuild/bazel/issues/18958
 ###############################################################################
 
-bazel_dep(name = "rules_cc", version = "0.0.15")
+bazel_dep(name = "rules_cc", version = "0.0.17")
 
 # Place this in your MODULE.bazel file.
 # The major version of nanobind-bazel is equal to the version
 # of the internally used nanobind.
 # In this case, we are building bindings with nanobind v2.4.0.
 bazel_dep(name = "nanobind_bazel", version = "2.4.0")
+
+# Add rules_python dependency here
+bazel_dep(name = "rules_python", version = "0.40.0")
+
+# Register pip dependencies
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    python_version = "3.11",
+    hub_name = "pip",
+    requirements_lock = "requirements.lock",
+)
+use_repo(pip, "pip")

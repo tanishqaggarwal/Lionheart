@@ -5,6 +5,7 @@
 // @date 2024-12-13
 
 #pragma once
+#include <array>
 #include <cmath>
 #include <stdexcept>
 
@@ -117,8 +118,8 @@ template <typename T> struct Matrix3 {
         : r1(r1), r2(r2), r3(r3) {}
 
     Matrix3(const std::array<std::array<T, 3>, 3> &m) noexcept
-        : r1(m[0][0], m[0][1], m[0][2]), r2(m[1][0], m[1][1], m[1][2]),
-          r3(m[2][0], m[2][1], m[2][2]) {}
+        : r1{m[0][0], m[0][1], m[0][2]}, r2{m[1][0], m[1][1], m[1][2]},
+          r3{m[2][0], m[2][1], m[2][2]} {}
 
     [[nodiscard]] Matrix3 operator-() const noexcept { return {-r1, -r2, -r3}; }
 

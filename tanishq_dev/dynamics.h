@@ -144,7 +144,6 @@ template <typename T> class RoverT {
             moi_total.inverse() *
             (net_torque_body - state.angular_velocity.value.cross(
                                    moi_total * state.angular_velocity.value));
-
         const auto &w = state.angular_velocity.value;
         const Matrix3<T> Omega{{0, -w.z, w.y}, {w.z, 0, -w.x}, {-w.y, w.x, 0}};
         state.attitude.derivative = -Omega * state.attitude.value;

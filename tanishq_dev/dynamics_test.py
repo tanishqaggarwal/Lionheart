@@ -12,11 +12,13 @@ class Simulation:
     def __init__(
         self,
         initial_state: lionheart.RoverState,
-        initial_position: tuple[float, float, float],
+        rover_dimensions: tuple[float, float, float],
         config: lionheart.RoverConfig,
     ) -> None:
-        self.rover = lionheart.Rover(initial_state, config)
+        self.plant = lionheart.Rover(initial_state, config)
         self.plotter = vedo.Plotter(interactive=False, offscreen=True)
+        self.rover_dimensions = rover_dimensions
+        self.box = None
 
         self.plotter.camera.SetPosition(5, 5, 5)  # Position the camera at (5,5,5)
         self.plotter.camera.SetFocalPoint(0, 0, 0)  # Look at origin
@@ -25,29 +27,24 @@ class Simulation:
         self.temp_dir = tempfile.TemporaryDirectory()
         self.output_folder = self.temp_dir.name
 
-    @property
-    def position(self) -> np.ndarray:
-        pos = self.rover.get_position()
-        return pos.to_numpy()
-
-    @property
-    def attitude(self) -> np.ndarray:
-        att = self.rover.get_attitude()
-        return att.to_numpy()
-
     def _step(
         self, dt: float, frame_count: int, collect_frame: bool, thrusts: list[float]
     ) -> None:
         # Update physics
-        self.rover.update(thrusts)
-        self.rover.integrate_rk4(dt)
+        self.plant.update(thrusts)
+        self.plant.integrate_rk4(dt)
 
-        if hasattr(self, "box"):
+        if self.box:
             self.plotter.remove(self.box)
-        self.box = vedo.Box(length=1, width=1, height=1, c="blue")
+        self.box = vedo.Box(
+            length=self.rover_dimensions[0],
+            width=self.rover_dimensions[1],
+            height=self.rover_dimensions[2],
+            c="blue",
+        )
         transform = np.eye(4)
-        transform[:3, :3] = self.attitude
-        transform[:3, 3] = self.position
+        transform[:3, :3] = self.plant.get_attitude().to_numpy()
+        transform[:3, 3] = self.plant.get_position().to_numpy()
         self.box.apply_transform(transform)
         self.plotter += self.box
 
@@ -114,21 +111,22 @@ config = lionheart.RoverConfig(
     ],
 )
 
-initial_position = (0, 0, 0)
-initial_state = lionheart.RoverState(
-    position=lionheart.Vector(*initial_position),
-    velocity=lionheart.Vector(0, 0, 0),
-    angular_velocity=lionheart.Vector(0, 0, 1.0),
-    attitude=lionheart.Matrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+sim = Simulation(
+    initial_state=lionheart.RoverState(
+        position=lionheart.Vector(0, 0, 0),
+        velocity=lionheart.Vector(0, 0, 0),
+        angular_velocity=lionheart.Vector(0, 0, 1.0),
+        attitude=lionheart.Matrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+    ),
+    rover_dimensions=(1, 1, 1),
+    config=config,
 )
-sim = Simulation(initial_state, initial_position, config)
-
 thrust_fn = lambda t: [0, 0, 0, 0, 0]
 
-framerate = 20
+framerate = 10
 dt = 0.01
 sim.run(
-    sim_time=10.0,
+    sim_time=1.0,
     dt=dt,
     timesteps_per_frame=int(1.0 / (dt * framerate)),
     thrust_fn=thrust_fn,

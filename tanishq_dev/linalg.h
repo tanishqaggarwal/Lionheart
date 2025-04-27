@@ -172,6 +172,10 @@ template <typename T> struct Matrix3 {
     [[nodiscard]] Vector3<T> c2() const noexcept { return {r1.y, r2.y, r3.y}; }
     [[nodiscard]] Vector3<T> c3() const noexcept { return {r1.z, r2.z, r3.z}; }
 
+    [[nodiscard]] Matrix3 transpose() const noexcept {
+        return {c1(), c2(), c3()};
+    }
+
     void clear() noexcept {
         r1.clear();
         r2.clear();
@@ -258,13 +262,14 @@ using Vector3f = Vector3<float>;
 
 template <typename T>
 Matrix3<T> normalize_orthogonal_matrix(const Matrix3<T> &mat) noexcept {
-    const auto col1 = mat.c1() / mat.c1().norm();
-    const auto col2 = mat.c2() - mat.c2().dot(col1) * col1;
+    // Use Gram-Schmidt to orthogonalize the matrix.
+    const auto c1 = mat.c1();
+    const auto c2 = mat.c2();
+    const auto col1 = c1 / c1.norm();
+    const auto col2 = c2 - c2.dot(col1) * col1;
     const auto col3 = col1.cross(col2);
-    const Vector3<T> row1{col1.x, col2.x, col3.x};
-    const Vector3<T> row2{col1.y, col2.y, col3.y};
-    const Vector3<T> row3{col1.z, col2.z, col3.z};
-    return {row1, row2, row3};
+    const Matrix3<T> m{col1, col2, col3};
+    return m.transpose();
 };
 
 } // namespace Lionheart

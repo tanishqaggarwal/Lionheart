@@ -1,7 +1,7 @@
 #pragma once
 
-#include <array>
 #include <cmath>
+#include <vector>
 
 #include "tanishq_dev/linalg.h"
 
@@ -65,20 +65,25 @@ template <typename T> class RoverT {
         Vector3<T> center_of_buoyancy;
 
         /// Positions and directions of thrust vectors, in body frame.
-        static constexpr size_t N_THRUSTERS{5};
-        std::array<Vector3<T>, N_THRUSTERS> thrust_positions;
-        std::array<Vector3<T>, N_THRUSTERS> thrust_vectors;
+        std::vector<Vector3<T>> thrust_positions;
+        std::vector<Vector3<T>> thrust_vectors;
+        size_t n_thrusters() const { return thrust_positions.size(); }
 
         /// Constructor
         config_t(T water_density_, T mass_, T volume_, const Matrix3<T> &moi_,
                  const Vector3<T> &center_of_buoyancy_,
-                 const std::array<Vector3<T>, N_THRUSTERS> &thrust_positions_,
-                 const std::array<Vector3<T>, N_THRUSTERS> &thrust_vectors_)
+                 const std::vector<Vector3<T>> &thrust_positions_,
+                 const std::vector<Vector3<T>> &thrust_vectors_)
             : water_density(water_density_), mass(mass_), volume(volume_),
               moi(moi_), moi_inv(moi_.inverse()),
               center_of_buoyancy(center_of_buoyancy_),
               thrust_positions(thrust_positions_),
-              thrust_vectors(thrust_vectors_) {}
+              thrust_vectors(thrust_vectors_) {
+            if (thrust_positions.size() != thrust_vectors.size()) {
+                throw std::runtime_error{"Thrust positions and vector "
+                                         "configurations must be same length"};
+            }
+        }
     } config;
 
     RoverT(const state_t &initial_state, const config_t &config_)
@@ -93,7 +98,7 @@ template <typename T> class RoverT {
         return std::make_tuple(Matrix3<T>{}, T{0.0});
     }
 
-    void update(const std::array<T, config_t::N_THRUSTERS> &thrusts) {
+    void update(const std::vector<T> &thrusts) {
         // Normalize attitude.
         state.attitude.value =
             normalize_orthogonal_matrix(state.attitude.value);
@@ -101,15 +106,20 @@ template <typename T> class RoverT {
         // Get "added mass" effects.
         const auto [moi_added, m_added] = added_mass();
 
+        // Check that input is sane.
+        if (thrusts.size() != config.n_thrusters()) {
+            throw std::runtime_error{"Invalid thrusts vector length"};
+        }
+
         // Get net thrust force in body frame.
         Vector3<T> net_thrust_force;
-        for (size_t i = 0; i < config_t::N_THRUSTERS; i++) {
+        for (size_t i = 0; i < config.n_thrusters(); i++) {
             net_thrust_force += config.thrust_vectors[i] * thrusts[i];
         }
 
         // Get net thrust torque in body frame.
         Vector3<T> net_thrust_torque;
-        for (size_t i = 0; i < config_t::N_THRUSTERS; i++) {
+        for (size_t i = 0; i < config.n_thrusters(); i++) {
             net_thrust_torque += config.thrust_positions[i].cross(
                 config.thrust_vectors[i] * thrusts[i]);
         }
@@ -159,6 +169,16 @@ template <typename T> class RoverT {
     void integrate_euler(T dt) {
         integrate(dt, [](const auto &state, const auto &derivative, T dt) {
             return state + derivative * dt;
+        });
+    }
+
+    void integrate_rk4(T dt) {
+        integrate(dt, [](const auto &state, const auto &derivative, T dt) {
+            const auto k1 = derivative * dt;
+            const auto k2 = (derivative + k1 / T{2.0}) * dt;
+            const auto k3 = (derivative + k2 / T{2.0}) * dt;
+            const auto k4 = (derivative + k3) * dt;
+            return state + (k1 + T{2.0} * k2 + T{2.0} * k3 + k4) / T{6.0};
         });
     }
 

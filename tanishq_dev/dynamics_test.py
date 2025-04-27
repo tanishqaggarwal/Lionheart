@@ -40,7 +40,7 @@ class Simulation:
     ) -> None:
         # Update physics
         self.rover.update(thrusts)
-        self.rover.integrate_euler(dt)
+        self.rover.integrate_rk4(dt)
 
         if hasattr(self, "box"):
             self.plotter.remove(self.box)
@@ -125,10 +125,12 @@ sim = Simulation(initial_state, initial_position, config)
 
 thrust_fn = lambda t: [0, 0, 0, 0, 0]
 
-framerate = 40
+framerate = 20
 dt = 0.01
-timesteps_per_frame = int(1.0 / (dt * framerate))
 sim.run(
-    sim_time=10.0, dt=0.01, timesteps_per_frame=timesteps_per_frame, thrust_fn=thrust_fn
+    sim_time=10.0,
+    dt=dt,
+    timesteps_per_frame=int(1.0 / (dt * framerate)),
+    thrust_fn=thrust_fn,
 )
 sim.save_video(framerate, "/tmp/lionheart.mp4")

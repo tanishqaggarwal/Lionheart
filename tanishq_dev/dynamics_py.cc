@@ -2,6 +2,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
 #include <nanobind/stl/array.h>
+#include <nanobind/stl/vector.h>
 
 namespace nb = nanobind;
 
@@ -43,10 +44,8 @@ NB_MODULE(dynamics_py, m) {
         .def(
             nb::init<double, double, double, const Lionheart::Matrix3<double> &,
                      const Lionheart::Vector3<double> &,
-                     std::array<Lionheart::Vector3<double>,
-                                Lionheart::Rover::config_t::N_THRUSTERS>,
-                     std::array<Lionheart::Vector3<double>,
-                                Lionheart::Rover::config_t::N_THRUSTERS>>(),
+                     std::vector<Lionheart::Vector3<double>>,
+                     std::vector<Lionheart::Vector3<double>>>(),
             nb::arg("water_density"), nb::arg("mass"), nb::arg("volume"),
             nb::arg("moi"), nb::arg("center_of_buoyancy"),
             nb::arg("thrust_positions"), nb::arg("thrust_vectors"));
@@ -65,5 +64,6 @@ NB_MODULE(dynamics_py, m) {
         .def("update", &Lionheart::Rover::update)
         .def("get_position", &Lionheart::Rover::get_position)
         .def("get_attitude", &Lionheart::Rover::get_attitude)
-        .def("integrate_euler", &Lionheart::Rover::integrate_euler);
+        .def("integrate_euler", &Lionheart::Rover::integrate_euler)
+        .def("integrate_rk4", &Lionheart::Rover::integrate_rk4);
 }

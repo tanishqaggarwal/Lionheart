@@ -99,10 +99,6 @@ template <typename T> class RoverT {
     }
 
     void update(const std::vector<T> &thrusts) {
-        // Normalize attitude.
-        state.attitude.value =
-            normalize_orthogonal_matrix(state.attitude.value);
-
         // Get "added mass" effects.
         const auto [moi_added, m_added] = added_mass();
 
@@ -143,10 +139,11 @@ template <typename T> class RoverT {
         state.position.derivative = state.velocity.value;
         state.velocity.derivative =
             net_force_inertial / (config.mass + m_added);
+        const auto moi_total = config.moi + moi_added;
         state.angular_velocity.derivative =
-            config.moi_inv *
+            moi_total.inverse() *
             (net_torque_body - state.angular_velocity.value.cross(
-                                   config.moi * state.angular_velocity.value));
+                                   moi_total * state.angular_velocity.value));
 
         const auto &w = state.angular_velocity.value;
         const Matrix3<T> Omega{{0, -w.z, w.y}, {w.z, 0, -w.x}, {-w.y, w.x, 0}};
@@ -164,6 +161,10 @@ template <typename T> class RoverT {
                        state.angular_velocity.derivative, dt);
         state.attitude.value =
             integrator(state.attitude.value, state.attitude.derivative, dt);
+
+        // Normalize attitude after integration.
+        state.attitude.value =
+            normalize_orthogonal_matrix(state.attitude.value);
     }
 
     void integrate_euler(T dt) {

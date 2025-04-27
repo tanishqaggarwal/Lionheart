@@ -2,18 +2,28 @@ import tanishq_dev.dynamics_py as lionheart
 from typing import Callable
 import numpy as np
 import vedo
+import os
+import tempfile
+import subprocess
+import tqdm
+
 
 class Simulation:
     def __init__(
         self,
         initial_state: lionheart.RoverState,
+        initial_position: tuple[float, float, float],
         config: lionheart.RoverConfig,
-        box: vedo.Box,
     ) -> None:
         self.rover = lionheart.Rover(initial_state, config)
-        self.plotter = vedo.Plotter(interactive=False, axes=1)
-        self.box = box
-        self.plotter += self.box
+        self.plotter = vedo.Plotter(interactive=False, offscreen=True)
+
+        self.plotter.camera.SetPosition(5, 5, 5)  # Position the camera at (5,5,5)
+        self.plotter.camera.SetFocalPoint(0, 0, 0)  # Look at origin
+        self.plotter.camera.SetViewUp(0, 0, 1)  # Set "up" direction to Z-axis
+
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.output_folder = self.temp_dir.name
 
     @property
     def position(self) -> np.ndarray:
@@ -26,36 +36,68 @@ class Simulation:
         return att.to_numpy()
 
     def _step(
-        self, t: float, dt: float, thrust_fn: Callable[float, list[float]]
+        self, dt: float, frame_count: int, collect_frame: bool, thrusts: list[float]
     ) -> None:
         # Update physics
-        self.rover.update(thrust_fn(t))
+        self.rover.update(thrusts)
         self.rover.integrate_euler(dt)
 
-        # Update visualization
-        self.box.pos(self.position)
+        if hasattr(self, "box"):
+            self.plotter.remove(self.box)
+        self.box = vedo.Box(length=1, width=1, height=1, c="blue")
         transform = np.eye(4)
         transform[:3, :3] = self.attitude
         transform[:3, 3] = self.position
         self.box.apply_transform(transform)
-        self.plotter.render()
+        self.plotter += self.box
+
+        if collect_frame:
+            frame_path = os.path.join(
+                self.output_folder, f"frame_{frame_count:05d}.png"
+            )
+            self.plotter.screenshot(frame_path)
 
     def run(
-        self, tf: float, dt: float, thrust_fn: Callable[float, list[float]]
+        self,
+        sim_time: float,
+        dt: float,
+        timesteps_per_frame: int,
+        thrust_fn: Callable[float, list[float]],
     ) -> None:
-        n_timesteps = int(tf // dt)
-        for i in range(n_timesteps):
-            self._step(i * dt, dt, thrust_fn)
+        n_timesteps = int(sim_time // dt)
+        for i in tqdm.trange(n_timesteps):
+            self._step(
+                dt=dt,
+                frame_count=i // timesteps_per_frame,
+                collect_frame=(i % timesteps_per_frame) == 0,
+                thrusts=thrust_fn(t := i * dt),
+            )
 
-    def stop(self):
-        self.plotter.interactive().close()
+    def save_video(self, framerate: int, output_location: str) -> None:
+        # Use ffmpeg to combine frames into video
+        cmd = [
+            "ffmpeg",
+            "-y",  # Overwrite output file if it exists
+            "-framerate",
+            f"{framerate}",  # Frames per second
+            "-i",
+            f"{self.output_folder}/frame_%05d.png",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            output_location,
+        ]
+        subprocess.run(cmd)
+        print(f"Video saved at {output_location}")
 
 
 config = lionheart.RoverConfig(
-    mass=1.0,
+    water_density=1035,
+    mass=1035,
     volume=1.0,
     moi=lionheart.Matrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
-    cb=lionheart.Vector(0, 0, 0),
+    center_of_buoyancy=lionheart.Vector(0, 0, 0),
     thrust_positions=[
         lionheart.Vector(0, 0, 0),
         lionheart.Vector(0, 0, 0),
@@ -76,13 +118,17 @@ initial_position = (0, 0, 0)
 initial_state = lionheart.RoverState(
     position=lionheart.Vector(*initial_position),
     velocity=lionheart.Vector(0, 0, 0),
-    angular_velocity=lionheart.Vector(0, 0, 0),
+    angular_velocity=lionheart.Vector(0, 0, 1.0),
     attitude=lionheart.Matrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
 )
-rover_body = vedo.Box(pos=initial_position, length=1, width=1, height=1, c="blue")
-sim = Simulation(initial_state, config, rover_body)
+sim = Simulation(initial_state, initial_position, config)
 
 thrust_fn = lambda t: [0, 0, 0, 0, 0]
-sim.run(10, 0.01, thrust_fn)
-input("Press Enter to exit.")
-sim.stop()
+
+framerate = 40
+dt = 0.01
+timesteps_per_frame = int(1.0 / (dt * framerate))
+sim.run(
+    sim_time=10.0, dt=0.01, timesteps_per_frame=timesteps_per_frame, thrust_fn=thrust_fn
+)
+sim.save_video(framerate, "/tmp/lionheart.mp4")

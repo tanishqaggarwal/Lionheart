@@ -32,6 +32,8 @@ python-dateutil==2.9.0.post0
     # via matplotlib
 six==1.17.0
     # via python-dateutil
+tqdm==4.67.1
+    # via -r requirements.txt
 typing-extensions==4.13.2
     # via vedo
 vedo==2025.5.3

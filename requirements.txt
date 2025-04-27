@@ -1,2 +1,6 @@
+# To regenerate, run the following from the root of the repository:
+# pip-compile requirements.txt --output-file requirements.lock --strip-extras
+
 vedo
 numpy
+tqdm

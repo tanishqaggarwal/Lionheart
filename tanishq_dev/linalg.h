@@ -19,6 +19,8 @@ template <typename T> struct Vector3 {
     return this->x * other.x + this->y * other.y + this->z * other.z;
   }
 
+  [[nodiscard]] Vector3 operator-() const noexcept { return {-x, -y, -z}; }
+
   [[nodiscard]] Vector3<T> cross(const Vector3<T> &other) const noexcept {
     Vector3 result;
     result.x = this->y * other.z - other.y * this->z;
@@ -252,5 +254,16 @@ Matrix3<T> operator/(const Matrix3<T> &m, const T c) noexcept {
 }
 
 using Vector3f = Vector3<float>;
+
+template<typename T>
+Matrix3<T> normalize_orthogonal_matrix(const Matrix3<T> &mat) noexcept {
+  const auto col1 = mat.c1() / mat.c1().norm();
+  const auto col2 = mat.c2() - mat.c2().dot(col1) * col1;
+  const auto col3 = col1.cross(col2);
+  const Vector3<T> row1 {col1.x, col2.x, col3.x};
+  const Vector3<T> row2 {col1.y, col2.y, col3.y};
+  const Vector3<T> row3 {col1.z, col2.z, col3.z};
+  return {row1, row2, row3};
+};
 
 } // namespace Lionheart

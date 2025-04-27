@@ -175,10 +175,10 @@ template <typename T> class RoverT {
     void integrate_rk4(T dt) {
         integrate(dt, [](const auto &state, const auto &derivative, T dt) {
             const auto k1 = derivative * dt;
-            const auto k2 = (derivative + k1 / T{2.0}) * dt;
-            const auto k3 = (derivative + k2 / T{2.0}) * dt;
+            const auto k2 = (derivative + k1 * T{0.5}) * dt;
+            const auto k3 = (derivative + k2 * T{0.5}) * dt;
             const auto k4 = (derivative + k3) * dt;
-            return state + (k1 + T{2.0} * k2 + T{2.0} * k3 + k4) / T{6.0};
+            return state + T{1.0 / 6.0} * (k1 + T{2.0} * k2 + T{2.0} * k3 + k4);
         });
     }
 

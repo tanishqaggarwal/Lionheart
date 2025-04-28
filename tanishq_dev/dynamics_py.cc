@@ -45,10 +45,14 @@ NB_MODULE(dynamics_py, m) {
             nb::init<double, double, double, const Lionheart::Matrix3<double> &,
                      const Lionheart::Vector3<double> &,
                      std::vector<Lionheart::Vector3<double>>,
-                     std::vector<Lionheart::Vector3<double>>>(),
+                     std::vector<Lionheart::Vector3<double>>, double, double,
+                     double>(),
             nb::arg("water_density"), nb::arg("mass"), nb::arg("volume"),
             nb::arg("moi"), nb::arg("center_of_buoyancy"),
-            nb::arg("thrust_positions"), nb::arg("thrust_vectors"));
+            nb::arg("thrust_positions"), nb::arg("thrust_vectors"),
+            nb::arg("attitude_controller_kp"),
+            nb::arg("attitude_controller_kd"),
+            nb::arg("position_controller_kp"));
 
     nb::class_<Lionheart::Rover::state_t>(m, "RoverState")
         .def(nb::init<const Lionheart::Vector3<double> &,

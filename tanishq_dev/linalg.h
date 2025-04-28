@@ -150,6 +150,11 @@ template <typename T> struct Matrix3 {
                m.r1.z * (m.r2.x * m.r3.y - m.r2.y * m.r3.x);
     }
 
+    [[nodiscard]] T trace() const noexcept {
+        const auto &m = *this;
+        return m.r1.x + m.r2.y + m.r3.z;
+    }
+
     [[nodiscard]] Matrix3 inverse() const noexcept {
         double invdet = 1 / determinant();
 

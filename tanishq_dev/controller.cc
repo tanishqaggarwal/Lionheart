@@ -24,4 +24,19 @@ AttitudeRegulationControllerT<T>::update(const Matrix3<T> &attitude_sns,
     return -1 * kp * p - kd * angvel_sns;
 }
 
+template <typename T>
+PositionRegulationControllerT<T>::PositionRegulationControllerT(T kp)
+    : kp(kp) {}
+
+template <typename T>
+Vector3<T>
+PositionRegulationControllerT<T>::update(const Vector3<T> &position_sns,
+                                         const Vector3<T> &position_cmd) {
+    const Vector3<T> err = position_cmd - position_sns;
+    return kp * err;
+}
+
+template struct AttitudeRegulationControllerT<double>;
+template struct PositionRegulationControllerT<double>;
+
 } // namespace Lionheart

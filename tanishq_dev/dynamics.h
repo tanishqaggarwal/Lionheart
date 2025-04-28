@@ -3,6 +3,7 @@
 #include <cmath>
 #include <vector>
 
+#include "tanishq_dev/controller.h"
 #include "tanishq_dev/linalg.h"
 
 namespace Lionheart {
@@ -69,16 +70,25 @@ template <typename T> class RoverT {
         std::vector<Vector3<T>> thrust_vectors;
         size_t n_thrusters() const { return thrust_positions.size(); }
 
+        /// Controllers
+        AttitudeRegulationControllerT<T> attitude_controller;
+        PositionRegulationControllerT<T> position_controller;
+
         /// Constructor
         config_t(T water_density_, T mass_, T volume_, const Matrix3<T> &moi_,
                  const Vector3<T> &center_of_buoyancy_,
                  const std::vector<Vector3<T>> &thrust_positions_,
-                 const std::vector<Vector3<T>> &thrust_vectors_)
+                 const std::vector<Vector3<T>> &thrust_vectors_,
+                 T attitude_controller_kp, T attitude_controller_kd,
+                 T position_controller_kp)
             : water_density(water_density_), mass(mass_), volume(volume_),
               moi(moi_), moi_inv(moi_.inverse()),
               center_of_buoyancy(center_of_buoyancy_),
               thrust_positions(thrust_positions_),
-              thrust_vectors(thrust_vectors_) {
+              thrust_vectors(thrust_vectors_),
+              attitude_controller(attitude_controller_kp,
+                                  attitude_controller_kd),
+              position_controller(position_controller_kp) {
             if (thrust_positions.size() != thrust_vectors.size()) {
                 throw std::runtime_error{"Thrust positions and vector "
                                          "configurations must be same length"};

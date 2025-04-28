@@ -109,6 +109,9 @@ config = lionheart.RoverConfig(
         lionheart.Vector(1, 0, 0),
         lionheart.Vector(1, 0, 0),
     ],
+    attitude_controller_kp=1.0,
+    attitude_controller_kd=1.0,
+    position_controller_kp=1.0
 )
 
 sim = Simulation(

@@ -10,4 +10,12 @@ template <typename T> struct AttitudeRegulationControllerT {
     T kp;
     T kd;
 };
+
+template <typename T> struct PositionRegulationControllerT {
+    PositionRegulationControllerT(T kp);
+    Vector3<T> update(const Vector3<T> &position_sns,
+                      const Vector3<T> &position_cmd);
+
+    T kp;
+};
 } // namespace Lionheart

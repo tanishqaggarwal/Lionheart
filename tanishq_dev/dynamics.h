@@ -108,6 +108,22 @@ template <typename T> class RoverT {
         return std::make_tuple(Matrix3<T>{}, T{0.0});
     }
 
+    std::vector<T> solve_thrust() {
+        // Solve for thrust vector weights.
+        const Vector3<T> position_signal = config.position_controller.update(
+            state.position.value, Vector3<T>{1, 0, 0});
+
+        const Vector3<T> attitude_signal = config.attitude_controller.update(
+            state.attitude.value, Matrix3<T>({1, 0, 0}, {0, 1, 0}, {0, 0, 1}),
+            state.angular_velocity.value);
+
+        std::vector<T> thrust_weights;
+        solve_thrust_weights(config.thrust_positions, config.thrust_vectors,
+                             position_signal, attitude_signal, thrust_weights);
+        assert(thrust_weights.size() == config.thrust_positions.size());
+        assert(thrust_weights.size() == config.thrust_vectors.size());
+    }
+
     void update(const std::vector<T> &thrusts) {
         // Get "added mass" effects.
         const auto [moi_added, m_added] = added_mass();

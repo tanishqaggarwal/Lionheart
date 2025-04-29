@@ -18,4 +18,12 @@ template <typename T> struct PositionRegulationControllerT {
 
     T kp;
 };
+
+template <typename T>
+void solve_thrust_weights(const std::vector<Vector3<T>> thrust_positions,
+                          const std::vector<Vector3<T>> thrust_vectors,
+                          const Vector3<T> position_cmd,
+                          const Vector3<T> torque_cmd,
+                          std::vector<T> thrust_weights);
+
 } // namespace Lionheart

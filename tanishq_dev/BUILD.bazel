@@ -38,7 +38,12 @@ cc_library(
     name = "controller",
     hdrs = ["controller.h"],
     srcs = ["controller.cc"],
-    deps = [":linalg", ":quaternion"]
+    deps = [":linalg", ":quaternion", ":least_squares_solver"]
+)
+
+cc_library(
+    name = "least_squares_solver",
+    hdrs = ["least_squares_solver.h"]
 )
 
 nanobind_extension(

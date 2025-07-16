@@ -1,3 +1,8 @@
+#pragma once
+
+#include <stdint.h>
+#include <string.h>
+
 namespace Telemetry {
 
 char START_DELIMITER = char(0xFF);

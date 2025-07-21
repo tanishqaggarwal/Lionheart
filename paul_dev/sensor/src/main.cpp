@@ -1,5 +1,6 @@
 /// Reference: https://learn.adafruit.com/adafruit-9-dof-imu-breakout/software
 
+#include "state.h"
 #include "telemetry.h"
 #include <Adafruit_9DOF.h>
 #include <Adafruit_L3GD20_U.h>
@@ -9,6 +10,9 @@
 #include <Ethernet.h>
 #include <SPI.h>
 #include <Wire.h>
+
+// State
+state_t state;
 
 // Timing variables
 float loop_start_ms = 0.0;
@@ -44,8 +48,7 @@ void init_sensors() {
 }
 
 bool init_ethernet_done = false;
-EthernetServer server(23);
-EthernetClient clients[8];
+EthernetUDP net_driver;
 void init_ethernet() {
 
     Serial.println("Setting up Ethernet...");
@@ -82,7 +85,7 @@ void init_ethernet() {
     }
 
     // start listening for clients
-    server.begin();
+    net_driver.begin(1);
 
     Serial.print("Chat server address:");
     Serial.println(Ethernet.localIP());

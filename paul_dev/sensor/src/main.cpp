@@ -10,6 +10,7 @@
 #include <Ethernet.h>
 #include <SPI.h>
 #include <Wire.h>
+#include <string.h>
 
 // State
 state_t state;
@@ -36,17 +37,20 @@ void init_sensors() {
         /* There was a problem detecting the LSM303 ... check your connections
          */
         Serial.println(F("Ooops, no LSM303 detected ... Check your wiring!"));
+        return;
     }
     if (!mag.begin()) {
         /* There was a problem detecting the LSM303 ... check your connections
          */
         Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+        return;
     }
     init_sensors_done = true;
 
     Serial.println("Sensor setup complete.");
 }
 
+#define NET_PORT 3000
 bool init_ethernet_done = false;
 EthernetUDP net_driver;
 void init_ethernet() {
@@ -84,8 +88,7 @@ void init_ethernet() {
         Serial.println("Ethernet cable is not connected.");
     }
 
-    // start listening for clients
-    net_driver.begin(1);
+    net_driver.begin(NET_PORT);
 
     Serial.print("Chat server address:");
     Serial.println(Ethernet.localIP());
@@ -93,6 +96,32 @@ void init_ethernet() {
     Serial.println("Ethernet setup complete.");
 
     init_ethernet_done = true;
+}
+
+int control_panel_port = -1;
+void read_command() {
+    Serial.println("Reading command from control panel...");
+    unsigned char net_buffer[512];
+    if (control_panel_port == -1) {
+        net_driver.parsePacket();
+        int bytes_read = net_driver.read(net_buffer, sizeof(net_buffer));
+        if (bytes_read > 0) {
+            Serial.print("Received command: ");
+            Serial.write(net_buffer, bytes_read);
+            Serial.println();
+        }
+        if (bytes_read != 0 &&
+            strncmp(reinterpret_cast<const char *>(net_buffer), "connect", 7) ==
+                0) {
+            control_panel_port = net_driver.remotePort();
+            net_driver.beginPacket(net_driver.remoteIP(), control_panel_port);
+            net_driver.write("Connected to control panel.");
+            net_driver.endPacket();
+            Serial.print("Connected to control panel at port: ");
+            Serial.println(control_panel_port);
+        }
+        return;
+    }
 }
 
 #define ENA_1_PIN 6
@@ -135,12 +164,15 @@ void setup() {
 void loop() {
     loop_start_ms = static_cast<float>(micros()) / 1000.0;
 
-    if (loop_start_ms - loop_end_ms < CONTROL_CYCLE_TIME_ms) {
-        delay(1); // Wait 1 millisecond in between polls.
-        return;
-    }
+    delay(1000);
+    // if (loop_start_ms - loop_end_ms < CONTROL_CYCLE_TIME_ms) {
+    //     Serial.println("Hello");
+    //     delay(1); // Wait 1 millisecond in between polls.
+    //     return;
+    // }
 
     if (init_ethernet_done) {
+        read_command();
     }
 
     if (init_sensors_done) {
@@ -161,12 +193,12 @@ void loop() {
             Telemetry::imu.heading = orientation.heading;
         }
 
-        loop_end_ms = static_cast<float>(micros()) / 1000.0;
-
         Telemetry::imu.uptime_ms = static_cast<uint32_t>(millis());
         Telemetry::imu.loop_time_ms = loop_end_ms - loop_start_ms;
 
         Telemetry::imu.writePacket();
         Serial.write(Telemetry::imu.packet, Telemetry::imu.PACKET_SIZE_BYTES);
     }
+
+    loop_end_ms = static_cast<float>(micros()) / 1000.0;
 }

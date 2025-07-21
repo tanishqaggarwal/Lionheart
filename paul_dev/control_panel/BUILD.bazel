@@ -1,0 +1,11 @@
+# Main control panel application
+cc_binary(
+    name = "control_panel",
+    srcs = ["main.cpp"],
+    copts = [
+        "-std=c++17",
+        "-Wall",
+        "-Wextra",
+    ],
+    visibility = ["//visibility:public"],
+)

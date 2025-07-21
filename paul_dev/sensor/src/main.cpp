@@ -92,6 +92,30 @@ void init_ethernet() {
     init_ethernet_done = true;
 }
 
+#define ENA_1_PIN 6
+#define IN_1_PIN 4
+#define IN_2_PIN 7
+void initMotorController() {
+    // Placeholder for motor controller initialization
+    Serial.println("Motor controller initialized.");
+
+    pinMode(ENA_1_PIN, OUTPUT);
+    pinMode(IN_1_PIN, OUTPUT);
+    pinMode(IN_2_PIN, OUTPUT);
+
+    analogWrite(ENA_1_PIN, 0);
+    digitalWrite(IN_1_PIN, LOW);
+    digitalWrite(IN_2_PIN, LOW);
+}
+
+void setMotorSpeed(int speed) {
+    // Placeholder for setting motor speed
+    Serial.println("Setting motor speed.");
+    analogWrite(ENA_1_PIN, speed);
+    digitalWrite(IN_1_PIN, HIGH);
+    digitalWrite(IN_2_PIN, LOW);
+}
+
 void setup() {
     // put your setup code here, to run once:
 
@@ -100,6 +124,9 @@ void setup() {
 
     init_sensors();
     init_ethernet();
+    initMotorController();
+
+    setMotorSpeed(100);
 }
 
 void loop() {

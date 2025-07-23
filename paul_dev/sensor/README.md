@@ -16,9 +16,11 @@ Verify ethernet connection with
 pauljoo@Pauls-MacBook-Air ~ % ping 192.168.1.177
 ```
 
-Send ethernet comms via the following. The firmware is encoded with a static IP.
+Send ethernet comms via the following. The firmware is encoded with a static IP. Also here are some sample commands.
 
 ```
 pauljoo@Pauls-MacBook-Air sensor % nc -u 192.168.1.177 3000
 connect
+m2_speed 255
+m2_speed 0
 ```

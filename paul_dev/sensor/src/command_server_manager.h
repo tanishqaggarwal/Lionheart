@@ -1,6 +1,7 @@
 #pragma once
 
 #include "state.h"
+#include "telemetry.h"
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 
@@ -15,6 +16,8 @@ struct CommandServerManager {
     state_t *state;
 
     EthernetUDP net_driver;
+
+    Telemetry telemetry;
 
     CommandServerManager(state_t *state) { state = state; }
 
@@ -76,6 +79,8 @@ struct CommandServerManager {
         } else {
             read_command();
         }
+
+        sendTelemetry();
     }
 
   private:
@@ -107,6 +112,14 @@ struct CommandServerManager {
         }
     }
 
+    void sendTelemetry() {
+        packTelemetry(telemetry, *state);
+        net_driver.beginPacket(control_panel_addr, control_panel_port);
+        net_driver.write(reinterpret_cast<const char *>(&telemetry),
+                         sizeof(telemetry));
+        net_driver.endPacket();
+    }
+
     void read_command() {
         unsigned char net_buffer[64];
         int packet_size = net_driver.parsePacket();
@@ -126,13 +139,11 @@ struct CommandServerManager {
             reinterpret_cast<const char *>(net_buffer), bytes_read, *state);
 
         net_driver.beginPacket(control_panel_addr, control_panel_port);
-        delay(100);
         if (success) {
             net_driver.write("Command Success!\n");
         } else {
             net_driver.write("Command Failed!\n");
         }
-        delay(100);
         net_driver.endPacket();
     }
 };

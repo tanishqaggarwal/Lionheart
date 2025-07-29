@@ -19,10 +19,16 @@
     FIELD(bool, m2_gnd, 0)
 
 struct state_t {
-#define FIELD(type, name, default_value) type name = default_value;
+#define FIELD(type, name, default_value) type name;
     FIELDS
 #undef FIELD
 };
+
+void init_state(state_t &state) {
+#define FIELD(type, name, default_value) state.name = default_value;
+    FIELDS
+#undef FIELD
+}
 
 bool process_command(const char *command, int len, state_t &state) {
     bool success = false;

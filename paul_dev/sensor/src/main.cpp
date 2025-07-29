@@ -25,6 +25,8 @@ void setup() {
     Serial.println("Setting Up...");
 
     system_context.state = new state_t();
+    init_state(*system_context.state);
+
     system_context.comms = new CommandServerManager(system_context.state);
     system_context.comms->init();
 

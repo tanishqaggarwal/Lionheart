@@ -1,5 +1,6 @@
 /// Reference: https://learn.adafruit.com/adafruit-9-dof-imu-breakout/software
 
+#include "ethernet.h"
 #include "state.h"
 #include "telemetry.h"
 #include <Adafruit_9DOF.h>
@@ -7,13 +8,15 @@
 #include <Adafruit_LSM303_U.h>
 #include <Adafruit_Sensor.h>
 #include <Arduino.h>
-#include <Ethernet.h>
 #include <SPI.h>
 #include <Wire.h>
 #include <string.h>
 
-// State
-state_t state;
+struct SystemContext {
+    state_t *state;
+    CommandServerManager *comms;
+
+} system_context;
 
 // Timing variables
 float loop_start_ms = 0.0;
@@ -52,101 +55,6 @@ const float CONTROL_CYCLE_TIME_ms = 50.0;
 //     Serial.println("Sensor setup complete.");
 // }
 
-#define NET_PORT 3000
-bool init_ethernet_done = false;
-EthernetUDP net_driver;
-void init_ethernet() {
-
-    Serial.println("Setting up Ethernet...");
-
-    // Enter a MAC address and IP address for your controller below.
-    // The IP address will be dependent on your local network.
-    // gateway and subnet are optional:
-    byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-    IPAddress ip(192, 168, 1, 177);
-    IPAddress myDns(192, 168, 1, 1);
-    IPAddress gateway(192, 168, 1, 1);
-    IPAddress subnet(255, 255, 0, 0);
-
-    // You can use Ethernet.init(pin) to configure the CS pin
-    Ethernet.init(10); // Most Arduino shields
-    // Ethernet.init(5);   // MKR ETH Shield
-    // Ethernet.init(0);   // Teensy 2.0
-    // Ethernet.init(20);  // Teensy++ 2.0
-    // Ethernet.init(15);  // ESP8266 with Adafruit FeatherWing Ethernet
-    // Ethernet.init(33);  // ESP32 with Adafruit FeatherWing Ethernet
-
-    // initialize the Ethernet device
-    Ethernet.begin(mac, ip, myDns, gateway, subnet);
-
-    // Check for Ethernet hardware present
-    if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-        Serial.println("Ethernet shield was not found.  Sorry, can't run "
-                       "without hardware. :(");
-        return;
-    }
-    Serial.println("Checking ethernet link status.");
-    if (Ethernet.linkStatus() == LinkOFF) {
-        // W5100 will expect link status UNKNOWN even if the cable is connected.
-        Serial.println("Ethernet cable is not connected.");
-        return;
-    }
-
-    net_driver.begin(NET_PORT);
-
-    Serial.print("Chat server address:");
-    Serial.println(Ethernet.localIP());
-
-    Serial.println("Ethernet setup complete.");
-
-    init_ethernet_done = true;
-}
-
-IPAddress control_panel_addr;
-int control_panel_port = -1;
-void read_command() {
-    unsigned char net_buffer[64];
-    int packet_size = net_driver.parsePacket();
-    if (packet_size == 0) {
-        return;
-    }
-    if (packet_size > sizeof(net_buffer)) {
-        Serial.println("Error: Received packet too large. Emptying.");
-        while (net_driver.read(net_buffer, sizeof(net_buffer)) != -1) {
-            // Keep reading until the buffer is empty
-        }
-        return;
-    }
-
-    if (control_panel_port == -1) {
-        int bytes_read = net_driver.read(net_buffer, sizeof(net_buffer));
-        if (bytes_read != 0 &&
-            strncmp(reinterpret_cast<const char *>(net_buffer), "connect", 7) ==
-                0) {
-            control_panel_port = net_driver.remotePort();
-            control_panel_addr = net_driver.remoteIP();
-            net_driver.beginPacket(control_panel_addr, control_panel_port);
-            net_driver.write("Connection Success!\n");
-            net_driver.endPacket();
-            Serial.print("Connection Success! Control panel port: ");
-            Serial.println(control_panel_port);
-        }
-        return;
-    }
-
-    int bytes_read = net_driver.read(net_buffer, sizeof(net_buffer));
-    bool success = process_command(reinterpret_cast<const char *>(net_buffer),
-                                   bytes_read, state);
-
-    net_driver.beginPacket(control_panel_addr, control_panel_port);
-    if (success) {
-        net_driver.write("Command Success!\n");
-    } else {
-        net_driver.write("Command Failed!\n");
-    }
-    net_driver.endPacket();
-}
-
 #define ENA_1_PIN 6
 #define IN_1_PIN 4
 #define IN_2_PIN 7
@@ -172,13 +80,16 @@ void setMotorSpeed(int speed) {
 }
 
 void setup() {
-    // put your setup code here, to run once:
 
     Serial.begin(115200);
     Serial.println("Setting Up...");
 
+    system_context.state = new state_t();
+    system_context.comms = new CommandServerManager(system_context.state);
+    system_context.comms->init();
+
+    // put your setup code here, to run once:
     // init_sensors();
-    init_ethernet();
     initMotorController();
 
     setMotorSpeed(100);
@@ -192,9 +103,7 @@ void loop() {
     // }
     delay(1000);
 
-    if (init_ethernet_done) {
-        read_command();
-    }
+    system_context.comms->dispatch();
 
     // if (init_sensors_done) {
     //     // Do work here:

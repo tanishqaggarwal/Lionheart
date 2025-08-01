@@ -15,16 +15,3 @@ void packTelemetry(Telemetry &telemetry, state_t &state) {
     telemetry.size = sizeof(Telemetry);
     telemetry.state = state;
 }
-
-bool unloadTelemetry(const char *buffer, Telemetry &telemetry) {
-    memcpy(&telemetry, buffer, sizeof(Telemetry));
-    if (telemetry.magic_number != MAGIC_NUMBER) {
-        Serial.println("Error: Invalid magic number in telemetry data.");
-        return false;
-    }
-    if (telemetry.size != sizeof(Telemetry)) {
-        Serial.println("Error: Invalid telemetry size.");
-        return false;
-    }
-    return true;
-}

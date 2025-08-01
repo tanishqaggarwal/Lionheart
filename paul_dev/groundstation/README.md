@@ -1,9 +1,11 @@
-To build
+To run the telemetry server.
+
 ```
-bazel build //paul_dev/groundstation:main
+bazel run //paul_dev/groundstation:main
 ```
 
-To Run
+To run the groundstation panel.
+
 ```
-./bazel-bin/paul_dev/groundstation/main /dev/tty.usbmodem14201
+open /Users/pauljoo/Documents/Lionheart/paul_dev/groundstation/index.html
 ```

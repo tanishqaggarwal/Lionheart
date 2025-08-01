@@ -24,3 +24,8 @@ pip.parse(
     requirements_lock = "requirements.lock",
 )
 use_repo(pip, "pip")
+
+bazel_dep(
+    name = "websocketpp",
+    version = "0.8.2.bcr.3",
+)

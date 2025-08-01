@@ -1,4 +1,6 @@
 cc_binary(
     name = "main",
-    srcs = ["main.cpp", "telemetry.h"]
+    srcs = ["main.cpp", "telemetry.h"],
+    deps = ["@websocketpp"],
+    copts = ["-std=c++20"]
 )

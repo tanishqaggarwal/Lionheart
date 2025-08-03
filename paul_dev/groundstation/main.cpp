@@ -8,6 +8,18 @@
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 
+std::string get_c_str_of_state(const state_t &state) {
+    std::string res;
+    res += "[";
+#define FIELD(type, name, default_value)                                       \
+    res += (std::string(#name) + ":" + std::to_string(state.name) + ",");
+    READ_WRITE_FIELDS
+    READ_ONLY_FIELDS
+#undef FIELD
+    res += "]";
+    return res;
+}
+
 struct TripleBuffer {
     Telemetry buffers[3];
 
@@ -60,7 +72,6 @@ void listenToTelemetry(TripleBuffer &telemetry_buffer) {
     bind(serverSocket, (struct sockaddr *)&addr, sizeof(addr));
 
     Telemetry telemetry;
-    char buffer[sizeof(Telemetry)];
     while (1) {
         int bytes_read = recv(serverSocket, static_cast<void *>(&telemetry),
                               sizeof(telemetry), MSG_PEEK);
@@ -80,9 +91,6 @@ void listenToTelemetry(TripleBuffer &telemetry_buffer) {
         }
         telemetry_buffer.write(telemetry);
 
-        std::cout.write(buffer, bytes_read);
-        std::cout << std::endl;
-
         usleep(1000);
     }
 }
@@ -97,7 +105,7 @@ int main() {
     server.init_asio();
     server.set_message_handler([&](auto hdl, auto msg) {
         telemetry_buffer.read(telemetry);
-        server.send(hdl, "Hello from Lionheart!",
+        server.send(hdl, get_c_str_of_state(telemetry.state),
                     websocketpp::frame::opcode::text);
     });
 

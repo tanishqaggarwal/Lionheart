@@ -132,7 +132,7 @@
 
 <body>
     <div class="container">
-        <h1>🚀 Lionheart Ground Station</h1>
+        <h1>Lionheart Ground Station</h1>
 
         <div id="status" class="status disconnected">
             Disconnected from WebSocket server
@@ -191,14 +191,14 @@
             if (isConnected) return;
 
             updateStatus('connecting', 'Connecting to WebSocket server...');
-            addMessage('system', 'Attempting to connect to ws://localhost:9002', 'System');
+            addMessage('system', 'Attempting to connect to ws://localhost:9001', 'System');
 
             try {
-                ws = new WebSocket('ws://localhost:9002');
+                ws = new WebSocket('ws://localhost:9001');
 
                 ws.onopen = function(event) {
                     isConnected = true;
-                    updateStatus('connected', 'Connected to WebSocket server on port 9002');
+                    updateStatus('connected', 'Connected to WebSocket server on port 9001');
                     addMessage('system', 'Successfully connected to Lionheart server!', 'System');
 
                     connectBtn.disabled = true;
@@ -228,7 +228,7 @@
 
                 ws.onerror = function(error) {
                     updateStatus('disconnected', 'WebSocket connection error');
-                    addMessage('system', 'Connection error - Make sure the C++ server is running on port 9002', 'Error');
+                    addMessage('system', 'Connection error - Make sure the C++ server is running on port 9001', 'Error');
                     console.error('WebSocket error:', error);
                 };
 

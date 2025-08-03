@@ -1,12 +1,18 @@
 #include "telemetry.h"
 #include <atomic>
+#include <chrono>
 #include <iostream>
 #include <netinet/in.h>
+#include <set>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <thread>
 #include <unistd.h>
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
+
+#define CMD_SERVER_PORT 9001
+#define MONITOR_SERVER_PORT 9002
 
 std::string get_json_of_state(const state_t &state) {
     std::string res;
@@ -99,23 +105,139 @@ int main() {
 
     TripleBuffer telemetry_buffer;
 
-    websocketpp::server<websocketpp::config::asio> server;
+    // Server 1: Command/Control Server
+    websocketpp::server<websocketpp::config::asio> cmd_server;
+    std::set<websocketpp::connection_hdl,
+             std::owner_less<websocketpp::connection_hdl>>
+        cmd_connections;
+
+    // Server 2: Telemetry Monitor Server
+    websocketpp::server<websocketpp::config::asio> monitor_server;
+    std::set<websocketpp::connection_hdl,
+             std::owner_less<websocketpp::connection_hdl>>
+        monitor_connections;
 
     Telemetry telemetry{};
-    server.init_asio();
-    server.set_message_handler([&](auto hdl, auto msg) {
-        telemetry_buffer.read(telemetry);
-        server.send(hdl, get_json_of_state(telemetry.state),
-                    websocketpp::frame::opcode::text);
+
+    // Initialize both servers
+    cmd_server.init_asio();
+    monitor_server.init_asio();
+
+    // Set socket reuse options to avoid "Address already in use" errors
+    cmd_server.set_reuse_addr(true);
+    monitor_server.set_reuse_addr(true);
+
+    // === COMMAND SERVER HANDLERS ===
+    cmd_server.set_open_handler(
+        [&cmd_connections](websocketpp::connection_hdl hdl) {
+            cmd_connections.insert(hdl);
+            std::cout << "New command connection established" << std::endl;
+        });
+
+    cmd_server.set_close_handler(
+        [&cmd_connections](websocketpp::connection_hdl hdl) {
+            cmd_connections.erase(hdl);
+            std::cout << "Command connection closed" << std::endl;
+        });
+
+    cmd_server.set_message_handler([&](auto hdl, auto msg) {
+        std::cout << "Command received: " << msg->get_payload() << std::endl;
+        // Handle commands here - send to rover, etc.
     });
 
-    server.listen(9002);
-    server.start_accept();
+    // === MONITOR SERVER HANDLERS ===
+    monitor_server.set_open_handler(
+        [&monitor_connections](websocketpp::connection_hdl hdl) {
+            monitor_connections.insert(hdl);
+            std::cout << "New monitor connection established" << std::endl;
+        });
 
-    std::cout << "WebSocket on ws://localhost:9002" << std::endl;
-    server.run();
+    monitor_server.set_close_handler(
+        [&monitor_connections](websocketpp::connection_hdl hdl) {
+            monitor_connections.erase(hdl);
+            std::cout << "Monitor connection closed" << std::endl;
+        });
 
-    // std::thread(listenToTelemetry).detach();
+    monitor_server.set_message_handler([&](auto hdl, auto msg) {
+        std::cout << "Monitor message: " << msg->get_payload() << std::endl;
+    });
+
+    // Start telemetry listening thread
+    // std::thread telemetry_thread(
+    //     [&telemetry_buffer]() { listenToTelemetry(telemetry_buffer); });
+    // telemetry_thread.detach();
+
+    // Start periodic telemetry broadcast thread (only to monitor clients)
+    std::thread broadcast_thread([&monitor_server, &monitor_connections,
+                                  &telemetry_buffer]() {
+        Telemetry current_telemetry{};
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+
+            telemetry_buffer.read(current_telemetry);
+            std::string json_data = get_json_of_state(current_telemetry.state);
+
+            // Send to all connected monitor clients
+            for (auto &hdl : monitor_connections) {
+                try {
+                    monitor_server.send(hdl, json_data,
+                                        websocketpp::frame::opcode::text);
+                } catch (const std::exception &e) {
+                    std::cerr << "Error sending to monitor client: " << e.what()
+                              << std::endl;
+                }
+            }
+        }
+    });
+    broadcast_thread.detach();
+
+    // Start both servers in separate threads
+    std::thread cmd_server_thread([&cmd_server]() {
+        try {
+            cmd_server.listen(
+                CMD_SERVER_PORT); // Command server on port CMD_SERVER_PORT
+            cmd_server.start_accept();
+            std::cout
+                << "Command server running on ws://localhost:CMD_SERVER_PORT"
+                << std::endl;
+            cmd_server.run();
+        } catch (const websocketpp::exception &e) {
+            std::cerr << "Command server error: " << e.what() << std::endl;
+            std::cerr << "Try waiting a few seconds before restarting, or use: "
+                         "sudo lsof -ti:CMD_SERVER_PORT | xargs kill -9"
+                      << std::endl;
+        }
+    });
+
+    std::thread monitor_server_thread([&monitor_server]() {
+        try {
+            monitor_server.listen(
+                MONITOR_SERVER_PORT); // Monitor server on port
+                                      // MONITOR_SERVER_PORT
+            monitor_server.start_accept();
+            std::cout << "Monitor server running on "
+                         "ws://localhost:MONITOR_SERVER_PORT"
+                      << std::endl;
+            monitor_server.run();
+        } catch (const websocketpp::exception &e) {
+            std::cerr << "Monitor server error: " << e.what() << std::endl;
+            std::cerr << "Try waiting a few seconds before restarting, or use: "
+                         "sudo lsof -ti:MONITOR_SERVER_PORT | xargs kill -9"
+                      << std::endl;
+        }
+    });
+
+    std::cout << "Both WebSocket servers started:" << std::endl;
+    std::cout << "- Command server: ws://localhost:CMD_SERVER_PORT"
+              << std::endl;
+    std::cout << "- Monitor server: ws://localhost:MONITOR_SERVER_PORT"
+              << std::endl;
+    std::cout << "Telemetry will be broadcast every 1 second to monitor clients"
+              << std::endl;
+
+    // Wait for both server threads
+    cmd_server_thread.join();
+    monitor_server_thread.join();
 
     return 0;
 }

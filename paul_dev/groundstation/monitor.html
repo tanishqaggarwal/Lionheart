@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lionheart Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .telemetry-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .telemetry-table th {
+            background-color: #343a40;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+        }
+        
+        .telemetry-table td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .telemetry-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .field-name {
+            font-weight: bold;
+            color: #495057;
+            width: 40%;
+        }
+        
+        .field-value {
+            color: #212529;
+            font-family: 'Courier New', monospace;
+        }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Lionheart Monitor</h1>
+
+    <div class="controls">
+        <h2>WebSocket Connection</h2>
+        <button id="connectBtn" onclick="connect()">Connect</button>
+        <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+        <div id="status" class="status disconnected">Disconnected</div>
+    </div>
+
+    <div id="monitor-content">
+        <h2>Live Telemetry Data</h2>
+        <table class="telemetry-table" id="telemetryTable">
+            <thead>
+                <tr>
+                    <th>Field</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody id="telemetryBody">
+                <tr>
+                    <td colspan="2" style="text-align: center; color: #666;">No telemetry data received yet</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let ws = null;
+
+        function connect() {
+            try {
+                ws = new WebSocket('ws://localhost:9002');
+
+                ws.onopen = function() {
+                    updateStatus('Connected', true);
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    console.log('WebSocket connected');
+                };
+
+                ws.onmessage = function(event) {
+                    console.log('Received:', event.data);
+
+                    // Try to parse as JSON telemetry data
+                    try {
+                        const telemetryData = JSON.parse(event.data);
+                        updateTelemetryTable(telemetryData);
+                    } catch (e) {
+                        // Not JSON data, log it
+                        console.log('Non-JSON message received:', event.data);
+                    }
+                };
+
+                ws.onclose = function() {
+                    updateStatus('Disconnected', false);
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = true;
+                    console.log('WebSocket disconnected');
+                };
+
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateStatus('Error', false);
+                };
+
+            } catch (error) {
+                console.error('Failed to connect:', error);
+                updateStatus('Connection Failed', false);
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function updateStatus(message, isConnected) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.className = 'status ' + (isConnected ? 'connected' : 'disconnected');
+        }
+
+        function updateTelemetryTable(data) {
+            const tableBody = document.getElementById('telemetryBody');
+            tableBody.innerHTML = ''; // Clear existing data
+
+            // Iterate through all fields in the JSON object
+            for (const [field, value] of Object.entries(data)) {
+                const row = document.createElement('tr');
+
+                const fieldCell = document.createElement('td');
+                fieldCell.className = 'field-name';
+                fieldCell.textContent = field;
+
+                const valueCell = document.createElement('td');
+                valueCell.className = 'field-value';
+
+                // Format the value based on type
+                if (typeof value === 'object' && value !== null) {
+                    valueCell.textContent = JSON.stringify(value);
+                } else if (typeof value === 'number') {
+                    valueCell.textContent = value.toFixed(3);
+                } else {
+                    valueCell.textContent = value;
+                }
+
+                row.appendChild(fieldCell);
+                row.appendChild(valueCell);
+                tableBody.appendChild(row);
+            }
+        }
+
+        // Auto-connect on page load
+        window.onload = function() {
+            connect();
+        };
+    </script>
+</body>
+
+</html>

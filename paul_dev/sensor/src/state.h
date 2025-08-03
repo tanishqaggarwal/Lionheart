@@ -1,11 +1,5 @@
 #pragma once
 
-#ifndef __AVR__
-#include <cstdlib>
-#else
-#include <stdlib.h>
-#endif
-
 #include <stdint.h>
 #include <string.h>
 
@@ -34,28 +28,3 @@ void init_state(state_t &state) {
     READ_ONLY_FIELDS
 #undef FIELD
 }
-
-bool process_command(const char *command, int len, state_t &state) {
-    bool success = false;
-    char cmd_buffer[64];
-    memcpy(cmd_buffer, command, len);
-    // -1 to remove the trailing newline
-    cmd_buffer[len - 1] = '\0';
-#define FIELD(type, name, default_value)                                       \
-    {                                                                          \
-        if (strncmp(cmd_buffer, #name, sizeof(#name) - 1) == 0) {              \
-            int val = atoi(&cmd_buffer[sizeof(#name)]);                        \
-            if (val == 0 && cmd_buffer[sizeof(#name)] != '0') {                \
-                return false;                                                  \
-            }                                                                  \
-            state.name = (type)val;                                            \
-            success = true;                                                    \
-        }                                                                      \
-    }
-    READ_WRITE_FIELDS
-#undef FIELD
-
-    return success;
-}
-
-#undef READ_WRITE_FIELDS

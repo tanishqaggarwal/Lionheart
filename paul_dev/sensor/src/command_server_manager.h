@@ -15,7 +15,7 @@ struct CommandServerManager {
 
     state_t *state;
 
-    EthernetUDP net_driver;
+    EthernetUDP cmd_driver;
 
     Telemetry telemetry;
 
@@ -59,7 +59,7 @@ struct CommandServerManager {
             return;
         }
 
-        net_driver.begin(NET_PORT);
+        cmd_driver.begin(NET_PORT);
 
         Serial.print("Chat server address:");
         Serial.println(Ethernet.localIP());
@@ -78,46 +78,50 @@ struct CommandServerManager {
             listen_for_command_server();
         } else {
             read_command();
+            sendTelemetry();
         }
-
-        sendTelemetry();
     }
 
   private:
     void listen_for_command_server() {
         unsigned char net_buffer[64];
-        int packet_size = net_driver.parsePacket();
+        int packet_size = cmd_driver.parsePacket();
         if (packet_size == 0) {
             return;
         }
         if (packet_size > sizeof(net_buffer)) {
             Serial.println("Error: Received packet too large. Emptying.");
-            while (net_driver.read(net_buffer, sizeof(net_buffer)) != -1) {
+            while (cmd_driver.read(net_buffer, sizeof(net_buffer)) != -1) {
                 // Keep reading until the buffer is empty
             }
             return;
         }
 
-        int bytes_read = net_driver.read(net_buffer, sizeof(net_buffer));
+        int bytes_read = cmd_driver.read(net_buffer, sizeof(net_buffer));
         if (bytes_read != 0 &&
             strncmp(reinterpret_cast<const char *>(net_buffer), "connect", 7) ==
                 0) {
-            control_panel_port = net_driver.remotePort();
-            control_panel_addr = net_driver.remoteIP();
-            net_driver.beginPacket(control_panel_addr, control_panel_port);
-            net_driver.write("Connection Success!\n");
-            net_driver.endPacket();
+            control_panel_port = cmd_driver.remotePort();
+            control_panel_addr = cmd_driver.remoteIP();
+            cmd_driver.beginPacket(control_panel_addr, control_panel_port);
+            cmd_driver.write("Connection Success!\n");
+            cmd_driver.endPacket();
             Serial.print("Connection Success! Control panel port: ");
             Serial.println(control_panel_port);
         }
     }
 
     void sendTelemetry() {
+        Serial.println("Sending telemetry...");
         packTelemetry(telemetry, *state);
-        net_driver.beginPacket(control_panel_addr, control_panel_port);
-        net_driver.write(reinterpret_cast<const char *>(&telemetry),
+        cmd_driver.beginPacket(control_panel_addr, TELEMETRY_PORT);
+        cmd_driver.write(reinterpret_cast<const char *>(&telemetry),
                          sizeof(telemetry));
-        net_driver.endPacket();
+        if (cmd_driver.endPacket() == 0) {
+            Serial.println("Error: Failed to send telemetry packet.");
+        } else {
+            Serial.println("Telemetry sent successfully.");
+        }
     }
 
     bool unloadTelemetry(const char *buffer, Telemetry &telemetry) {
@@ -159,28 +163,28 @@ struct CommandServerManager {
 
     void read_command() {
         unsigned char net_buffer[64];
-        int packet_size = net_driver.parsePacket();
+        int packet_size = cmd_driver.parsePacket();
         if (packet_size == 0) {
             return;
         }
         if (packet_size > sizeof(net_buffer)) {
             Serial.println("Error: Received packet too large. Emptying.");
-            while (net_driver.read(net_buffer, sizeof(net_buffer)) != -1) {
+            while (cmd_driver.read(net_buffer, sizeof(net_buffer)) != -1) {
                 // Keep reading until the buffer is empty
             }
             return;
         }
 
-        int bytes_read = net_driver.read(net_buffer, sizeof(net_buffer));
+        int bytes_read = cmd_driver.read(net_buffer, sizeof(net_buffer));
         bool success = process_command(
             reinterpret_cast<const char *>(net_buffer), bytes_read, *state);
 
-        net_driver.beginPacket(control_panel_addr, control_panel_port);
+        cmd_driver.beginPacket(control_panel_addr, control_panel_port);
         if (success) {
-            net_driver.write("Command Success!\n");
+            cmd_driver.write("Command Success!\n");
         } else {
-            net_driver.write("Command Failed!\n");
+            cmd_driver.write("Command Failed!\n");
         }
-        net_driver.endPacket();
+        cmd_driver.endPacket();
     }
 };

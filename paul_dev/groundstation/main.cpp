@@ -32,7 +32,7 @@ std::string get_json_of_state(const state_t &state) {
 }
 
 struct TripleBuffer {
-    Telemetry buffers[3];
+    Telemetry buffers[3] = {};
 
     std::atomic<int> write_idx{0};
     std::atomic<int> read_idx{1};
@@ -82,7 +82,7 @@ void listenToTelemetry(TripleBuffer &telemetry_buffer) {
 
     bind(serverSocket, (struct sockaddr *)&addr, sizeof(addr));
 
-    Telemetry telemetry;
+    Telemetry telemetry = {};
     while (1) {
         int bytes_read = recv(serverSocket, static_cast<void *>(&telemetry),
                               sizeof(telemetry), MSG_PEEK);
@@ -100,6 +100,7 @@ void listenToTelemetry(TripleBuffer &telemetry_buffer) {
             std::cerr << "Error: Invalid telemetry size." << std::endl;
             continue;
         }
+        std::cout << "Writing to telemetry buffer" << std::endl;
         telemetry_buffer.write(telemetry);
 
         usleep(1000);
@@ -122,8 +123,6 @@ int main() {
              std::owner_less<websocketpp::connection_hdl>>
         monitor_connections;
 
-    Telemetry telemetry{};
-
     // Initialize both servers
     cmd_server.init_asio();
     monitor_server.init_asio();
@@ -131,6 +130,18 @@ int main() {
     // Set socket reuse options to avoid "Address already in use" errors
     cmd_server.set_reuse_addr(true);
     monitor_server.set_reuse_addr(true);
+
+    // Disable verbose WebSocket++ logging
+    cmd_server.clear_access_channels(websocketpp::log::alevel::all);
+    cmd_server.clear_error_channels(websocketpp::log::elevel::all);
+    monitor_server.clear_access_channels(websocketpp::log::alevel::all);
+    monitor_server.clear_error_channels(websocketpp::log::elevel::all);
+
+    // Or keep only important error messages
+    // cmd_server.set_error_channels(websocketpp::log::elevel::warn |
+    // websocketpp::log::elevel::rerror | websocketpp::log::elevel::fatal);
+    // monitor_server.set_error_channels(websocketpp::log::elevel::warn |
+    // websocketpp::log::elevel::rerror | websocketpp::log::elevel::fatal);
 
     // === COMMAND SERVER HANDLERS ===
     cmd_server.set_open_handler(
@@ -168,9 +179,9 @@ int main() {
     });
 
     // Start telemetry listening thread
-    // std::thread telemetry_thread(
-    //     [&telemetry_buffer]() { listenToTelemetry(telemetry_buffer); });
-    // telemetry_thread.detach();
+    std::thread telemetry_thread(
+        [&telemetry_buffer]() { listenToTelemetry(telemetry_buffer); });
+    telemetry_thread.detach();
 
     // Start periodic telemetry broadcast thread (only to monitor clients)
     std::thread broadcast_thread([&monitor_server, &monitor_connections,

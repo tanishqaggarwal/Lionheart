@@ -18,10 +18,15 @@ std::string get_json_of_state(const state_t &state) {
     std::string res;
     res += "{";
 #define FIELD(type, name, default_value)                                       \
-    res += (std::string(#name) + ":" + std::to_string(state.name) + ",");
+    res += ("\"" + std::string(#name) + "\":" + std::to_string(state.name) +   \
+            ",");
     READ_WRITE_FIELDS
     READ_ONLY_FIELDS
 #undef FIELD
+    // Remove trailing comma if present
+    if (!res.empty() && res.back() == ',') {
+        res.pop_back();
+    }
     res += "}";
     return res;
 }
@@ -172,7 +177,7 @@ int main() {
                                   &telemetry_buffer]() {
         Telemetry current_telemetry{};
         while (true) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
             telemetry_buffer.read(current_telemetry);
             std::string json_data = get_json_of_state(current_telemetry.state);

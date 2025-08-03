@@ -142,8 +142,6 @@
                 };
 
                 ws.onmessage = function(event) {
-                    console.log('Received:', event.data);
-
                     // Try to parse as JSON telemetry data
                     try {
                         const telemetryData = JSON.parse(event.data);

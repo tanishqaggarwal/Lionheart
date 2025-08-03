@@ -8,15 +8,15 @@
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 
-std::string get_c_str_of_state(const state_t &state) {
+std::string get_json_of_state(const state_t &state) {
     std::string res;
-    res += "[";
+    res += "{";
 #define FIELD(type, name, default_value)                                       \
     res += (std::string(#name) + ":" + std::to_string(state.name) + ",");
     READ_WRITE_FIELDS
     READ_ONLY_FIELDS
 #undef FIELD
-    res += "]";
+    res += "}";
     return res;
 }
 
@@ -105,7 +105,7 @@ int main() {
     server.init_asio();
     server.set_message_handler([&](auto hdl, auto msg) {
         telemetry_buffer.read(telemetry);
-        server.send(hdl, get_c_str_of_state(telemetry.state),
+        server.send(hdl, get_json_of_state(telemetry.state),
                     websocketpp::frame::opcode::text);
     });
 

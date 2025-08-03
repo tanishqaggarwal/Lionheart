@@ -100,7 +100,6 @@ void listenToTelemetry(TripleBuffer &telemetry_buffer) {
             std::cerr << "Error: Invalid telemetry size." << std::endl;
             continue;
         }
-        std::cout << "Writing to telemetry buffer" << std::endl;
         telemetry_buffer.write(telemetry);
 
         usleep(1000);

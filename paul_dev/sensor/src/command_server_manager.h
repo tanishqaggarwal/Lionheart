@@ -19,7 +19,7 @@ struct CommandServerManager {
 
     Telemetry telemetry;
 
-    CommandServerManager(state_t *state) { state = state; }
+    CommandServerManager(state_t *state) : state(state) {}
 
     void init() {
 
@@ -112,15 +112,12 @@ struct CommandServerManager {
     }
 
     void sendTelemetry() {
-        Serial.println("Sending telemetry...");
         packTelemetry(telemetry, *state);
         cmd_driver.beginPacket(control_panel_addr, TELEMETRY_PORT);
         cmd_driver.write(reinterpret_cast<const char *>(&telemetry),
                          sizeof(telemetry));
         if (cmd_driver.endPacket() == 0) {
             Serial.println("Error: Failed to send telemetry packet.");
-        } else {
-            Serial.println("Telemetry sent successfully.");
         }
     }
 

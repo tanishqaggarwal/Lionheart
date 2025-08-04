@@ -138,8 +138,7 @@ struct CommandServerManager {
         bool success = false;
         char cmd_buffer[64];
         memcpy(cmd_buffer, command, len);
-        // -1 to remove the trailing newline
-        cmd_buffer[len - 1] = '\0';
+        cmd_buffer[len] = '\0';
 
 #define FIELD(type, name, default_value)                                       \
     {                                                                          \

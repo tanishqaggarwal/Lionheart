@@ -1,6 +1,9 @@
 #include "telemetry_processor.h"
+#include <arpa/inet.h>
 #include <atomic>
 #include <chrono>
+#include <cstring>
+#include <errno.h>
 #include <iostream>
 #include <netinet/in.h>
 #include <set>
@@ -71,6 +74,124 @@ struct TripleBuffer {
     }
 };
 
+struct CommandSender {
+    char buffer[64] = {};
+    int socketfd; // Use single socket for both send and receive
+    struct sockaddr_in dest_addr;
+    bool initialized = false;
+    std::atomic<bool> running{true};
+
+    CommandSender() {
+        // Create UDP socket for both sending and receiving
+        socketfd = socket(AF_INET, SOCK_DGRAM, 0);
+        if (socketfd < 0) {
+            std::cerr << "Error creating command socket" << std::endl;
+            return;
+        }
+
+        // Set up destination address (192.168.1.177:3000)
+        dest_addr.sin_family = AF_INET;
+        dest_addr.sin_port = htons(3000);
+        inet_pton(AF_INET, "192.168.1.177", &dest_addr.sin_addr);
+
+        // Bind socket to a specific source port (3003)
+        struct sockaddr_in local_addr;
+        local_addr.sin_family = AF_INET;
+        local_addr.sin_addr.s_addr = INADDR_ANY;
+        local_addr.sin_port = htons(3003);
+
+        if (bind(socketfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) <
+            0) {
+            std::cerr << "Error binding socket to port 3003: "
+                      << strerror(errno) << std::endl;
+            close(socketfd);
+            return;
+        }
+
+        initialized = true;
+        std::cout << "CommandSender initialized:" << std::endl;
+        std::cout << "  - Sending from: 0.0.0.0:3003 to 192.168.1.177:3000"
+                  << std::endl;
+        std::cout << "  - Listening on: 0.0.0.0:3003 for responses"
+                  << std::endl;
+    }
+
+    ~CommandSender() {
+        running = false;
+        if (socketfd >= 0) {
+            close(socketfd);
+        }
+    }
+
+    void sendBuffer() {
+        if (!initialized) {
+            std::cerr << "CommandSender not initialized" << std::endl;
+            return;
+        }
+
+        int bytes_sent =
+            sendto(socketfd, buffer, strlen(buffer), 0,
+                   (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+
+        if (bytes_sent < 0) {
+            std::cerr << "Error sending command: " << strerror(errno)
+                      << std::endl;
+        } else {
+            std::cout << "Sent " << bytes_sent
+                      << " bytes to 192.168.1.177:3000: " << buffer
+                      << std::endl;
+        }
+    }
+
+    void setBuffer(const char *data) {
+        strncpy(buffer, data, sizeof(buffer) - 1);
+        buffer[sizeof(buffer) - 1] = '\0'; // Ensure null termination
+    }
+
+    void startListening() {
+        if (!initialized) {
+            std::cerr << "CommandSender not initialized, cannot start listening"
+                      << std::endl;
+            return;
+        }
+
+        std::thread listen_thread([this]() {
+            char response_buffer[256];
+            struct sockaddr_in sender_addr;
+            socklen_t sender_len = sizeof(sender_addr);
+
+            std::cout << "CommandSender listening thread started" << std::endl;
+
+            while (running) {
+                int bytes_received = recvfrom(
+                    socketfd, response_buffer, sizeof(response_buffer) - 1, 0,
+                    (struct sockaddr *)&sender_addr, &sender_len);
+
+                if (bytes_received > 0) {
+                    response_buffer[bytes_received] = '\0'; // Null terminate
+
+                    char sender_ip[INET_ADDRSTRLEN];
+                    inet_ntop(AF_INET, &sender_addr.sin_addr, sender_ip,
+                              INET_ADDRSTRLEN);
+
+                    std::cout << "Arduino response from " << sender_ip << ":"
+                              << ntohs(sender_addr.sin_port) << " - "
+                              << response_buffer << std::endl;
+                } else if (bytes_received < 0 && running) {
+                    std::cerr << "Error receiving command response: "
+                              << strerror(errno) << std::endl;
+                }
+
+                usleep(1000); // Small delay to prevent busy waiting
+            }
+
+            std::cout << "CommandSender listening thread stopped" << std::endl;
+        });
+
+        listen_thread.detach();
+    }
+};
+
 void listenToTelemetry(TripleBuffer &telemetry_buffer) {
 
     int serverSocket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -100,6 +221,7 @@ void listenToTelemetry(TripleBuffer &telemetry_buffer) {
 int main() {
 
     TripleBuffer telemetry_buffer;
+    CommandSender command_sender;
 
     // Server 1: Command/Control Server
     websocketpp::server<websocketpp::config::asio> cmd_server;
@@ -147,8 +269,16 @@ int main() {
         });
 
     cmd_server.set_message_handler([&](auto hdl, auto msg) {
-        std::cout << "Command received: " << msg->get_payload() << std::endl;
-        // Handle commands here - send to rover, etc.
+        std::string command = msg->get_payload();
+        std::cout << "Command received: " << command << std::endl;
+
+        // Send command to 192.168.1.177:3000
+        command_sender.setBuffer(command.c_str());
+        command_sender.sendBuffer();
+
+        // Send confirmation back to WebSocket client
+        cmd_server.send(hdl, "Command sent to rover: " + command,
+                        websocketpp::frame::opcode::text);
     });
 
     // === MONITOR SERVER HANDLERS ===
@@ -172,6 +302,9 @@ int main() {
     std::thread telemetry_thread(
         [&telemetry_buffer]() { listenToTelemetry(telemetry_buffer); });
     telemetry_thread.detach();
+
+    // Start command sender listening thread
+    command_sender.startListening();
 
     // Start periodic telemetry broadcast thread (only to monitor clients)
     std::thread broadcast_thread([&monitor_server, &monitor_connections,

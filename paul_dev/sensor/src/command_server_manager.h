@@ -1,12 +1,10 @@
 #pragma once
 
+#include "ports.h"
 #include "state.h"
 #include "telemetry.h"
 #include <Ethernet.h>
 #include <EthernetUdp.h>
-
-#define NET_PORT 3000
-
 struct CommandServerManager {
 
     bool initialized = false;
@@ -59,7 +57,7 @@ struct CommandServerManager {
             return;
         }
 
-        cmd_driver.begin(NET_PORT);
+        cmd_driver.begin(MICRO_CMD_PORT);
 
         Serial.print("Chat server address:");
         Serial.println(Ethernet.localIP());
@@ -113,7 +111,7 @@ struct CommandServerManager {
 
     void sendTelemetry() {
         packTelemetry(telemetry, *state);
-        cmd_driver.beginPacket(control_panel_addr, TELEMETRY_PORT);
+        cmd_driver.beginPacket(control_panel_addr, SERVER_TELM_PORT);
         cmd_driver.write(reinterpret_cast<const char *>(&telemetry),
                          sizeof(telemetry));
         if (cmd_driver.endPacket() == 0) {

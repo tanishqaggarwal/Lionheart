@@ -15,9 +15,6 @@
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 
-#define CMD_SERVER_PORT 9001
-#define MONITOR_SERVER_PORT 9002
-
 std::string get_json_of_state(const state_t &state) {
     std::string res;
     res += "{";
@@ -93,20 +90,20 @@ struct CommandSender {
             return;
         }
 
-        // Set up destination address (192.168.1.177:3000)
+        // Set up destination address (192.168.1.177:MICRO_CMD_PORT)
         dest_addr.sin_family = AF_INET;
-        dest_addr.sin_port = htons(3000);
+        dest_addr.sin_port = htons(MICRO_CMD_PORT);
         inet_pton(AF_INET, "192.168.1.177", &dest_addr.sin_addr);
 
-        // Bind socket to a specific source port (3003)
+        // Bind socket to a specific source port (SERVER_CMD_PORT)
         struct sockaddr_in local_addr;
         local_addr.sin_family = AF_INET;
         local_addr.sin_addr.s_addr = INADDR_ANY;
-        local_addr.sin_port = htons(3003);
+        local_addr.sin_port = htons(SERVER_CMD_PORT);
 
         if (bind(socketfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) <
             0) {
-            std::cerr << "Error binding socket to port 3003: "
+            std::cerr << "Error binding socket to port SERVER_CMD_PORT: "
                       << strerror(errno) << std::endl;
             close(socketfd);
             return;
@@ -114,9 +111,10 @@ struct CommandSender {
 
         initialized = true;
         std::cout << "CommandSender initialized:" << std::endl;
-        std::cout << "  - Sending from: 0.0.0.0:3003 to 192.168.1.177:3000"
+        std::cout << "  - Sending from: 0.0.0.0:SERVER_CMD_PORT to "
+                     "192.168.1.177:MICRO_CMD_PORT"
                   << std::endl;
-        std::cout << "  - Listening on: 0.0.0.0:3003 for responses"
+        std::cout << "  - Listening on: 0.0.0.0:SERVER_CMD_PORT for responses"
                   << std::endl;
     }
 
@@ -142,7 +140,7 @@ struct CommandSender {
                       << std::endl;
         } else {
             std::cout << "Sent " << bytes_sent
-                      << " bytes to 192.168.1.177:3000: " << buffer
+                      << " bytes to 192.168.1.177:MICRO_CMD_PORT: " << buffer
                       << std::endl;
         }
     }
@@ -214,7 +212,7 @@ void listenToTelemetry(TripleBuffer &telemetry_buffer) {
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(TELEMETRY_PORT);
+    addr.sin_port = htons(SERVER_TELM_PORT);
 
     bind(serverSocket, (struct sockaddr *)&addr, sizeof(addr));
 
@@ -287,7 +285,7 @@ int main() {
         std::string command = msg->get_payload();
         std::cout << "Command received: " << command << std::endl;
 
-        // Send command to 192.168.1.177:3000
+        // Send command to 192.168.1.177:MICRO_CMD_PORT
         command_sender.setBuffer(command.c_str());
         command_sender.sendBuffer();
 
@@ -365,42 +363,39 @@ int main() {
     std::thread cmd_server_thread([&cmd_server]() {
         try {
             cmd_server.listen(
-                CMD_SERVER_PORT); // Command server on port CMD_SERVER_PORT
+                CMD_UI_PORT); // Command server on port CMD_UI_PORT
             cmd_server.start_accept();
-            std::cout
-                << "Command server running on ws://localhost:CMD_SERVER_PORT"
-                << std::endl;
+            std::cout << "Command server running on ws://localhost:CMD_UI_PORT"
+                      << std::endl;
             cmd_server.run();
         } catch (const websocketpp::exception &e) {
             std::cerr << "Command server error: " << e.what() << std::endl;
             std::cerr << "Try waiting a few seconds before restarting, or use: "
-                         "sudo lsof -ti:CMD_SERVER_PORT | xargs kill -9"
+                         "sudo lsof -ti:CMD_UI_PORT | xargs kill -9"
                       << std::endl;
         }
     });
 
     std::thread monitor_server_thread([&monitor_server]() {
         try {
-            monitor_server.listen(
-                MONITOR_SERVER_PORT); // Monitor server on port
-                                      // MONITOR_SERVER_PORT
+            monitor_server.listen(MONITOR_UI_PORT); // Monitor server on port
+                                                    // MONITOR_UI_PORT
             monitor_server.start_accept();
             std::cout << "Monitor server running on "
-                         "ws://localhost:MONITOR_SERVER_PORT"
+                         "ws://localhost:MONITOR_UI_PORT"
                       << std::endl;
             monitor_server.run();
         } catch (const websocketpp::exception &e) {
             std::cerr << "Monitor server error: " << e.what() << std::endl;
             std::cerr << "Try waiting a few seconds before restarting, or use: "
-                         "sudo lsof -ti:MONITOR_SERVER_PORT | xargs kill -9"
+                         "sudo lsof -ti:MONITOR_UI_PORT | xargs kill -9"
                       << std::endl;
         }
     });
 
     std::cout << "Both WebSocket servers started:" << std::endl;
-    std::cout << "- Command server: ws://localhost:CMD_SERVER_PORT"
-              << std::endl;
-    std::cout << "- Monitor server: ws://localhost:MONITOR_SERVER_PORT"
+    std::cout << "- Command server: ws://localhost:CMD_UI_PORT" << std::endl;
+    std::cout << "- Monitor server: ws://localhost:MONITOR_UI_PORT"
               << std::endl;
     std::cout << "Telemetry will be broadcast every 1 second to monitor clients"
               << std::endl;

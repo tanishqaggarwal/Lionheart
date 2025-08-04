@@ -3,6 +3,7 @@ cc_library(
     hdrs = [
         "sensor/src/state.h",
         "sensor/src/telemetry.h",
+        "sensor/src/ports.h",
     ],
     includes = ["sensor/src"],
     visibility = ["//visibility:public"],

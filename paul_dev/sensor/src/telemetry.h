@@ -1,8 +1,8 @@
 #pragma once
 
+#include "ports.h"
 #include "state.h"
 
-#define TELEMETRY_PORT 3001
 #define MAGIC_NUMBER 0xDEADBEEF
 
 struct Telemetry {

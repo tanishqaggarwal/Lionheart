@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstring>
 #include <errno.h>
+#include <functional>
 #include <iostream>
 #include <netinet/in.h>
 #include <set>
@@ -81,6 +82,9 @@ struct CommandSender {
     bool initialized = false;
     std::atomic<bool> running{true};
 
+    // Add callback for Arduino responses
+    std::function<void(const std::string &)> response_callback;
+
     CommandSender() {
         // Create UDP socket for both sending and receiving
         socketfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -143,6 +147,11 @@ struct CommandSender {
         }
     }
 
+    void
+    setResponseCallback(std::function<void(const std::string &)> callback) {
+        response_callback = callback;
+    }
+
     void setBuffer(const char *data) {
         strncpy(buffer, data, sizeof(buffer) - 1);
         buffer[sizeof(buffer) - 1] = '\0'; // Ensure null termination
@@ -174,9 +183,15 @@ struct CommandSender {
                     inet_ntop(AF_INET, &sender_addr.sin_addr, sender_ip,
                               INET_ADDRSTRLEN);
 
+                    std::string response_msg = std::string(response_buffer);
                     std::cout << "Arduino response from " << sender_ip << ":"
                               << ntohs(sender_addr.sin_port) << " - "
-                              << response_buffer << std::endl;
+                              << response_msg << std::endl;
+
+                    // Call the callback to send response to WebSocket clients
+                    if (response_callback) {
+                        response_callback("Arduino response: " + response_msg);
+                    }
                 } else if (bytes_received < 0 && running) {
                     std::cerr << "Error receiving command response: "
                               << strerror(errno) << std::endl;
@@ -305,6 +320,22 @@ int main() {
 
     // Start command sender listening thread
     command_sender.startListening();
+
+    // Set callback to broadcast Arduino responses to command WebSocket clients
+    command_sender.setResponseCallback(
+        [&cmd_server, &cmd_connections](const std::string &response) {
+            // Send Arduino response to all connected command clients
+            for (auto &hdl : cmd_connections) {
+                try {
+                    cmd_server.send(hdl, response,
+                                    websocketpp::frame::opcode::text);
+                } catch (const std::exception &e) {
+                    std::cerr
+                        << "Error sending Arduino response to command client: "
+                        << e.what() << std::endl;
+                }
+            }
+        });
 
     // Start periodic telemetry broadcast thread (only to monitor clients)
     std::thread broadcast_thread([&monitor_server, &monitor_connections,

@@ -1,4 +1,4 @@
-#include "telemetry.h"
+#include "telemetry_processor.h"
 #include <atomic>
 #include <chrono>
 #include <iostream>
@@ -82,27 +82,18 @@ void listenToTelemetry(TripleBuffer &telemetry_buffer) {
 
     bind(serverSocket, (struct sockaddr *)&addr, sizeof(addr));
 
-    Telemetry telemetry = {};
+    TelemetryProcessor telemetry_processor;
+    char recv_buffer[sizeof(Telemetry)] = {};
     while (1) {
-        int bytes_read = recv(serverSocket, static_cast<void *>(&telemetry),
-                              sizeof(telemetry), MSG_PEEK);
-        if (bytes_read != sizeof(telemetry)) {
-            continue;
+        int bytes_read =
+            recv(serverSocket, recv_buffer, sizeof(recv_buffer), 0);
+        for (int i = 0; i < bytes_read; ++i) {
+            if (telemetry_processor.processChar(recv_buffer[i])) {
+                telemetry_buffer.write(*(
+                    reinterpret_cast<Telemetry *>(telemetry_processor.buffer)));
+            }
         }
-        bytes_read = recv(serverSocket, static_cast<void *>(&telemetry),
-                          sizeof(telemetry), 0);
-        if (telemetry.magic_number != MAGIC_NUMBER) {
-            std::cerr << "Error: Invalid magic number in telemetry data."
-                      << std::endl;
-            continue;
-        }
-        if (telemetry.size != sizeof(Telemetry)) {
-            std::cerr << "Error: Invalid telemetry size." << std::endl;
-            continue;
-        }
-        telemetry_buffer.write(telemetry);
-
-        usleep(1000);
+        usleep(20000);
     }
 }
 

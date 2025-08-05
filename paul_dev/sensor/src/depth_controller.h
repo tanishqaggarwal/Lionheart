@@ -11,9 +11,10 @@ struct DepthController {
     int integral_factor = 0;
 
     // Calculates the force required to maintain the desired depth
-    int calculate_force(int r_ecef_z, int v_ecef_z, int dt) {
-        integral_factor += v_ecef_z * dt;
-        int force = Kp * r_ecef_z + Ki * integral_factor;
-        return force;
+    int calculate_force(int r_ecef_z, int target_z, int dt) {
+        int error = target_z - r_ecef_z;
+        integral_factor += error * dt;
+        int force = Kp * error + Ki * integral_factor;
+        return force + F_buoyancy;
     }
 };

@@ -54,7 +54,6 @@ struct TripleBuffer {
 
     // Consumer reads data
     bool read(Telemetry &data) {
-
         if (!new_data.load()) {
             return false;
         }

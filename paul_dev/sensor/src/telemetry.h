@@ -5,7 +5,7 @@
 
 #define MAGIC_NUMBER 0xDEADBEEF
 
-struct Telemetry {
+struct __attribute__((packed)) Telemetry {
     uint32_t magic_number;
     uint32_t size;
     state_t state;

@@ -30,14 +30,14 @@ void setup() {
     system_context.comms = new CommandServerManager(system_context.state);
     system_context.comms->init();
 
-    system_context.motor = new Motor();
+    system_context.motor = new Motor(system_context.state);
     system_context.motor->initMotorController();
 }
 
 void loop() {
 
     system_context.comms->dispatch();
-    system_context.motor->dispatch();
+    system_context.motor->dispatch(1);
 
     delay(1000);
 }

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lionheart Command Panel</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.connecting {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+        }
+        
+        .controls button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        
+        .controls button:hover {
+            background-color: #0056b3;
+        }
+        
+        .controls button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .reset-button {
+            background-color: #dc3545 !important;
+        }
+        
+        .reset-button:hover {
+            background-color: #c82333 !important;
+        }
+        
+        .manual-button {
+            background-color: #fd7e14 !important;
+        }
+        
+        .manual-button:hover {
+            background-color: #e0690a !important;
+        }
+        
+        .manual-button.active {
+            background-color: #28a745 !important;
+        }
+        
+        .manual-button.active:hover {
+            background-color: #218838 !important;
+        }
+        
+        .seebee-button {
+            background-color: #17a2b8 !important;
+        }
+        
+        .seebee-button:hover {
+            background-color: #138496 !important;
+        }
+        
+        .number-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .number-control label {
+            font-weight: bold;
+            color: #495057;
+            min-width: 80px;
+        }
+        
+        .number-control input[type="range"] {
+            flex: 1;
+            height: 8px;
+            background: linear-gradient(to right, #007bff 0%, #007bff 0%, #ddd 0%, #ddd 100%);
+            outline: none;
+            border-radius: 4px;
+        }
+        
+        .number-control input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #007bff;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .number-control input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: #007bff;
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .number-display {
+            font-weight: bold;
+            font-size: 1.4em;
+            color: #007bff;
+            min-width: 50px;
+            text-align: center;
+            padding: 8px 12px;
+            background-color: white;
+            border: 2px solid #007bff;
+            border-radius: 6px;
+        }
+        
+        .send-number-btn {
+            background-color: #28a745 !important;
+            white-space: nowrap;
+            padding: 12px 20px;
+            font-weight: bold;
+        }
+        
+        .send-number-btn:hover {
+            background-color: #218838 !important;
+        }
+        
+        .messages {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            height: 200px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: #f8f9fa;
+            margin-top: 20px;
+        }
+        
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        
+        .message.received {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .message.sent {
+            background-color: #f3e5f5;
+            border-left: 4px solid #9c27b0;
+        }
+        
+        .message.system {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+            font-style: italic;
+        }
+        
+        .timestamp {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Lionheart Command Panel</h1>
+
+        <div id="status" class="status disconnected">
+            Disconnected from Command Server
+        </div>
+
+        <div class="controls">
+            <button id="connectBtn" onclick="connect()">Connect</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+        </div>
+
+        <div class="controls">
+            <button id="seebeeBtn" class="seebee-button" onclick="connectToSeeBee()" disabled>Connect To SeeBee</button>
+            <button id="resetBtn" class="reset-button" onclick="sendReset()" disabled>Reset</button>
+            <button id="manualBtn" class="manual-button" onclick="toggleManualControl()" disabled>Start Manual Commanding</button>
+        </div>
+
+        <div class="number-control">
+            <div class="slider-group">
+                <label for="numberSlider1">Motor 1 Speed:</label>
+                <input type="range" id="numberSlider1" min="0" max="255" value="0" oninput="updateNumberDisplay(1, this.value)">
+                <div id="numberDisplay1" class="number-display">0</div>
+                <button id="sendNumberBtn1" class="send-number-btn" onclick="sendNumberValue(1)" disabled>Send M1</button>
+            </div>
+            <div class="slider-group">
+                <label for="numberSlider2">Motor 2 Speed:</label>
+                <input type="range" id="numberSlider2" min="0" max="255" value="0" oninput="updateNumberDisplay(2, this.value)">
+                <div id="numberDisplay2" class="number-display">0</div>
+                <button id="sendNumberBtn2" class="send-number-btn" onclick="sendNumberValue(2)" disabled>Send M2</button>
+            </div>
+        </div>
+
+        <div id="messages" class="messages">
+            <div class="message system">
+                <div class="timestamp">System</div>
+                Welcome to Lionheart Command Panel. Connect to start sending commands.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isConnected = false;
+        let manualControlActive = false;
+        let manualControlInterval = null;
+
+        const statusEl = document.getElementById('status');
+        const messagesEl = document.getElementById('messages');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const seebeeBtn = document.getElementById('seebeeBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const manualBtn = document.getElementById('manualBtn');
+        const sendNumberBtn1 = document.getElementById('sendNumberBtn1');
+        const sendNumberBtn2 = document.getElementById('sendNumberBtn2');
+        const numberSlider1 = document.getElementById('numberSlider1');
+        const numberSlider2 = document.getElementById('numberSlider2');
+        const numberDisplay1 = document.getElementById('numberDisplay1');
+        const numberDisplay2 = document.getElementById('numberDisplay2');
+
+        function updateStatus(status, message) {
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = message;
+        }
+
+        function addMessage(type, content, source = '') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const timestamp = new Date().toLocaleTimeString();
+            messageDiv.innerHTML = `
+                <div class="timestamp">${source} - ${timestamp}</div>
+                <div>${content}</div>
+            `;
+
+            messagesEl.appendChild(messageDiv);
+
+            // Keep only the latest 100 messages
+            const messages = messagesEl.querySelectorAll('.message');
+            if (messages.length > 100) {
+                // Remove the oldest message (first child)
+                messagesEl.removeChild(messages[0]);
+            }
+
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function updateNumberDisplay(motorNum, value) {
+            const display = document.getElementById(`numberDisplay${motorNum}`);
+            const slider = document.getElementById(`numberSlider${motorNum}`);
+
+            display.textContent = value;
+
+            // Update slider background gradient to show progress
+            const percentage = (value / 255) * 100;
+            slider.style.background = `linear-gradient(to right, #007bff ${percentage}%, #ddd ${percentage}%)`;
+        }
+
+        function connect() {
+            if (isConnected) return;
+
+            updateStatus('connecting', 'Connecting to Command Server...');
+            addMessage('system', 'Attempting to connect to ws://localhost:9001', 'System');
+
+            try {
+                ws = new WebSocket('ws://localhost:9001');
+
+                ws.onopen = function(event) {
+                    isConnected = true;
+                    updateStatus('connected', 'Connected to Command Server on port 9001');
+                    addMessage('system', 'Successfully connected to Lionheart command server!', 'System');
+
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    seebeeBtn.disabled = false;
+                    resetBtn.disabled = false;
+                    manualBtn.disabled = false;
+                    sendNumberBtn1.disabled = false;
+                    sendNumberBtn2.disabled = false;
+                };
+
+                ws.onmessage = function(event) {
+                    addMessage('received', event.data, 'Server');
+                    console.log('Received from server:', event.data);
+                };
+
+                ws.onclose = function(event) {
+                    isConnected = false;
+                    updateStatus('disconnected', 'Disconnected from Command Server');
+                    addMessage('system', `Connection closed. Code: ${event.code}, Reason: ${event.reason || 'Unknown'}`, 'System');
+
+                    // Stop manual control if active
+                    if (manualControlActive) {
+                        stopManualControl();
+                    }
+
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    seebeeBtn.disabled = true;
+                    resetBtn.disabled = true;
+                    manualBtn.disabled = true;
+                    sendNumberBtn1.disabled = true;
+                    sendNumberBtn2.disabled = true;
+                };
+
+                ws.onerror = function(error) {
+                    updateStatus('disconnected', 'WebSocket connection error');
+                    addMessage('system', 'Connection error - Make sure the C++ server is running on port 9001', 'Error');
+                    console.error('WebSocket error:', error);
+                };
+
+            } catch (error) {
+                updateStatus('disconnected', 'Failed to create WebSocket connection');
+                addMessage('system', `Failed to connect: ${error.message}`, 'Error');
+            }
+        }
+
+        function disconnect() {
+            if (ws && isConnected) {
+                // Stop manual control before disconnecting
+                if (manualControlActive) {
+                    stopManualControl();
+                }
+                ws.close();
+            }
+        }
+
+        function sendNumberValue(motorNum) {
+            const slider = document.getElementById(`numberSlider${motorNum}`);
+            const value = slider.value;
+
+            if (!isConnected || !ws) {
+                addMessage('system', 'Not connected to server', 'Error');
+                return;
+            }
+
+            try {
+                const message = `set_m${motorNum}_speed ${value}`;
+                ws.send(message);
+                addMessage('sent', message, 'Command');
+                addMessage('system', `Sent Motor ${motorNum} speed: ${value}`, 'System');
+            } catch (error) {
+                addMessage('system', `Failed to send command: ${error.message}`, 'Error');
+            }
+        }
+
+        function sendReset() {
+            if (!isConnected || !ws) {
+                addMessage('system', 'Not connected to server', 'Error');
+                return;
+            }
+
+            try {
+                const message = 'reset 1';
+                ws.send(message);
+                addMessage('sent', message, 'Reset Command');
+                addMessage('system', 'Sent reset command to rover', 'System');
+            } catch (error) {
+                addMessage('system', `Failed to send reset: ${error.message}`, 'Error');
+            }
+        }
+
+        function connectToSeeBee() {
+            if (!isConnected || !ws) {
+                addMessage('system', 'Not connected to server', 'Error');
+                return;
+            }
+
+            try {
+                const message = 'connect';
+                ws.send(message);
+                addMessage('sent', message, 'SeeBee Command');
+                addMessage('system', 'Sent connect command to SeeBee', 'System');
+            } catch (error) {
+                addMessage('system', `Failed to send SeeBee connect: ${error.message}`, 'Error');
+            }
+        }
+
+        function toggleManualControl() {
+            if (!isConnected || !ws) {
+                addMessage('system', 'Not connected to server', 'Error');
+                return;
+            }
+
+            if (manualControlActive) {
+                stopManualControl();
+            } else {
+                startManualControl();
+            }
+        }
+
+        function startManualControl() {
+            try {
+                // Send command to enable manual motor control
+                ws.send('use_manual_motor_control 1');
+                addMessage('sent', 'use_manual_motor_control 1', 'Manual Control');
+                addMessage('system', 'Enabled manual motor control', 'System');
+
+                manualControlActive = true;
+                manualBtn.textContent = 'Stop Manual Commanding';
+                manualBtn.classList.add('active');
+
+                // Start sending motor values at 5Hz (every 200ms)
+                manualControlInterval = setInterval(sendCurrentMotorValues, 200);
+
+            } catch (error) {
+                addMessage('system', `Failed to start manual control: ${error.message}`, 'Error');
+            }
+        }
+
+        function stopManualControl() {
+            try {
+                // Clear the interval
+                if (manualControlInterval) {
+                    clearInterval(manualControlInterval);
+                    manualControlInterval = null;
+                }
+
+                // Send command to disable manual motor control
+                if (ws && isConnected) {
+                    ws.send('use_manual_motor_control 0');
+                    addMessage('sent', 'use_manual_motor_control 0', 'Manual Control');
+                    addMessage('system', 'Disabled manual motor control', 'System');
+                }
+
+                manualControlActive = false;
+                manualBtn.textContent = 'Start Manual Commanding';
+                manualBtn.classList.remove('active');
+
+            } catch (error) {
+                addMessage('system', `Failed to stop manual control: ${error.message}`, 'Error');
+            }
+        }
+
+        function sendCurrentMotorValues() {
+            if (!isConnected || !ws || !manualControlActive) {
+                return;
+            }
+
+            try {
+                const motor1Speed = numberSlider1.value;
+                const motor2Speed = numberSlider2.value;
+
+                ws.send(`set_m1_speed ${motor1Speed}`);
+                ws.send(`set_m2_speed ${motor2Speed}`);
+
+                // Only log occasionally to avoid spam
+                if (Math.random() < 0.1) { // 10% chance to log
+                    addMessage('sent', `M1: ${motor1Speed}, M2: ${motor2Speed}`, 'Auto Control');
+                }
+
+            } catch (error) {
+                addMessage('system', `Failed to send motor values: ${error.message}`, 'Error');
+                stopManualControl();
+            }
+        }
+
+        // Initialize slider displays
+        updateNumberDisplay(1, 0);
+        updateNumberDisplay(2, 0);
+
+        // Auto-connect on page load
+        window.addEventListener('load', function() {
+            addMessage('system', 'Command Panel loaded. Ready to connect.', 'System');
+        });
+
+        // Handle page close
+        window.addEventListener('beforeunload', function() {
+            if (manualControlActive) {
+                stopManualControl();
+            }
+            if (ws && isConnected) {
+                ws.close();
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -30,9 +30,11 @@ void setup() {
     system_context.motor.initMotorController(&system_context.state);
 }
 
+#define LOOP_TIME_MS 100
+
 void loop() {
     system_context.comms.dispatch();
-    system_context.motor.dispatch(1);
+    system_context.motor.dispatch(LOOP_TIME_MS);
 
-    delay(1000);
+    delay(LOOP_TIME_MS);
 }

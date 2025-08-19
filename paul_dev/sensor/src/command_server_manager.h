@@ -5,6 +5,11 @@
 #include "telemetry.h"
 #include <Ethernet.h>
 #include <EthernetUdp.h>
+
+void softwareReset() {
+    asm volatile("  jmp 0"); // Jump to address 0 (reset vector)
+}
+
 struct CommandServerManager {
 
     bool initialized = false;
@@ -17,9 +22,9 @@ struct CommandServerManager {
 
     Telemetry telemetry;
 
-    CommandServerManager(state_t *state) : state(state) {}
+    void init(state_t *state_) {
 
-    void init() {
+        state = state_;
 
         Serial.println("Setting up Ethernet...");
 
@@ -72,6 +77,14 @@ struct CommandServerManager {
         } else {
             read_command();
             sendTelemetry();
+        }
+
+        if (state->reset) {
+            cmd_driver.beginPacket(control_panel_addr, control_panel_port);
+            cmd_driver.write("Resetting!\n");
+            cmd_driver.endPacket();
+            delay(1);
+            softwareReset();
         }
     }
 

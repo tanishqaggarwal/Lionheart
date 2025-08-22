@@ -23,7 +23,7 @@ Kp = 10   # Increased proportional gain
 Ki = 1   # Keep integral gain
 Kd = 1   # Increased derivative gain
 
-Zref = 5
+Zref = -5
 Zstart = 0
 
 # Define the differential equation

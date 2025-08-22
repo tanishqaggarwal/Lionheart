@@ -29,17 +29,17 @@ Zstart = 0
 # Define the differential equation
 def model(y, t):
     z, vel, integral_error = y
-    error = z - Zref
+    error = Zref - z
     # Integral term accumulation
     integral_dot = error
     
     # Control force (PID controller)
-    # For depth control: negative control force means upward thrust
-    control_force = -Kp * error - Ki * integral_error - Kd * vel
+    # For depth control: positive control force means upward thrust
+    control_force = Kp * error + Ki * integral_error + Kd * vel
     
     # Dynamics equation (corrected physics)
-    # Gravity pulls down (+), buoyancy pushes up (-), drag opposes motion (-)
-    accel = (g - rho * v * g - b * vel + control_force) / m
+    # Gravity pulls down (-), buoyancy pushes up (+), drag opposes motion (+)
+    accel = (-g + rho * v * g - b * vel + control_force) / m
     
     dydt = [vel, accel, integral_dot]
     return dydt
